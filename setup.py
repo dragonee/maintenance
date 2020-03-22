@@ -13,7 +13,7 @@ setup(
     ],
     packages=('maintenance',),
     package_dir={'': 'src'},
-    install_requires=['docopt'],
+    install_requires=['docopt', 'daemonize', 'requests', 'psutil'],
     python_requires='>=3',
     entry_points={
         'console_scripts': [
