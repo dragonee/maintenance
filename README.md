@@ -15,6 +15,21 @@ Options:
     -h, --help  Show this message.
 ```
 
+## notify-when-done
+
+```
+Call specific process. On finish, notify via Pushover API.
+
+Usage:
+    notify-when-done [options] [--] COMMAND...
+
+Options:
+    -p          High priority (this message will pop on phone).
+    -m MESSAGE  Print specific message.
+    --version   Show version information.
+    -h, --help  Show this message.
+```
+
 ## coordinate
 
 ```
