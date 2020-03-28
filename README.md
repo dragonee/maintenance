@@ -15,6 +15,22 @@ Options:
     -h, --help  Show this message.
 ```
 
+## coordinate
+
+```
+Wait on specific resource lock and then run a command.
+
+Usage:
+    coordinate [-h HOST] RESOURCE [--] COMMAND...
+    coordinate --help
+    coordinate --version
+
+Options:
+    -h HOST    Use specific Redis host.
+    --help     Display this message.
+    --version  Display version information.
+```
+
 # Development
 
 ```
