@@ -13,11 +13,13 @@ setup(
     ],
     packages=('maintenance',),
     package_dir={'': 'src'},
-    install_requires=['docopt', 'daemonize', 'requests', 'psutil'],
+    install_requires=['docopt', 'daemonize', 'requests', 'psutil', 'redis'],
     python_requires='>=3',
     entry_points={
         'console_scripts': [
             'notify-on-exit = maintenance.tools.notify_on_exit:main',
+            'notify-when-done = maintenance.tools.notify_when_done:main',
+            'coordinate = maintenance.tools.coordinate:main',
         ],
     }
 )

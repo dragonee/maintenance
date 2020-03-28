@@ -17,7 +17,6 @@ def notify(message, title=None, priority=None):
 
     if priority:
         payload['priority'] = priority
-        print(priority)
 
     requests.post(
         'https://api.pushover.net/1/messages.json',
