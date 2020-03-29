@@ -83,6 +83,66 @@ Options:
 
 ```
 
+## video-feed
+
+```
+Get feed of NUMBER minutes of video files from remote directory.
+
+Download Watch Later videos with yt-download-watch-later.
+
+Usage:
+    video-feed [-n NUMBER] [-c] [DIRECTORY]
+    video-feed -h | --help
+    video-feed --version
+
+Options:
+    -c          Check local and remote pool.
+    -n NUMBER   Download enough files to satisfy this period [default: 60].
+    -h, --help  Display this message.
+    --version   Show version information.
+```
+
+## video-lengths
+
+```
+Get lengths (in full seconds) of all videos present in a directory.
+
+Usage:
+    video-lengths [-f FORMAT] [-c CACHE] [-t] DIRECTORY
+    video-lengths -h | --help
+    video-lengths --version
+
+Options:
+    -f FORMAT   Format - text or json [default: text].
+    -c CACHE    Cache lengths. Assume files don't change.
+    -t          Sort by last modified time.
+    -h, --help  Display this message.
+    --version   Show version information.
+
+```
+
+## coordinate-arduino
+
+```
+Monitor status of specific Redis locks and communicate it to Arduino.
+
+Run with supervisor, as it doesn't daemonize or check for its health.
+
+Usage:
+    coordinate-arduino [-d DEVICE] [-f] LOCKS...
+    coordinate-arduino -h | --help
+    coordinate-arduino --version
+
+LOCKS are an ordered list of Redis keys to poll.
+
+Options:
+    -f          Flatten all locks to the least-significant bit.
+    -d DEVICE   Device to communicate with Arduino [default: /dev/ttyACM0].
+    -h, --help  Display this message.
+    --version   Show version information.
+
+```
+
 # Development
 
 ```
@@ -90,4 +150,3 @@ python3 -m venv env
 . env/bin/activate
 pip install -e .
 ```
-
