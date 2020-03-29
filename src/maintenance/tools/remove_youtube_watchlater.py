@@ -53,7 +53,7 @@ def spawn_driver(chrome_binary=None, chromedriver_binary=None):
 
 def jar_cookie_to_webdriver_cookie(cookie):
     cookie_dict = {
-        'domain': cookie.domain.strip('.'),
+        'domain': cookie.domain,
         'name': cookie.name,
         'value': cookie.value,
         'secure': cookie.secure
