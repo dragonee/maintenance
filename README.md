@@ -46,6 +46,28 @@ Options:
     --version  Display version information.
 ```
 
+## yt-remove-watchlater
+
+```
+Automatically remove N first videos from Youtube Watch Later playlist.
+
+Usage:
+    yt-remove-watch-later [-n NUMBER] [-c COOKIES]
+    yt-remove-watch-later -h | --help
+    yt-remove-watch-later --version
+
+Options:
+    -c COOKIES  Path to cookie file.
+    -n NUMBER   Remove only N entries.
+    -h, --help  Print this message.
+    --version   Print version information.
+
+Other considerations:
+
+This program uses webscraping, because currently Youtube API cannot access
+Watch Later Playlist.
+```
+
 # Development
 
 ```
