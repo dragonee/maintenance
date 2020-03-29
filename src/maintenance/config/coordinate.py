@@ -4,8 +4,7 @@ from configparser import ConfigParser
 from pathlib import Path
 
 class CoordinateConfigFile:
-    token = None
-    user = None
+    server = None
 
     def __init__(self):
         self.reader = ConfigParser()

@@ -121,6 +121,28 @@ Options:
 
 ```
 
+## coordinate-arduino
+
+```
+Monitor status of specific Redis locks and communicate it to Arduino.
+
+Run with supervisor, as it doesn't daemonize or check for its health.
+
+Usage:
+    coordinate-arduino [-d DEVICE] [-f] LOCKS...
+    coordinate-arduino -h | --help
+    coordinate-arduino --version
+
+LOCKS are an ordered list of Redis keys to poll.
+
+Options:
+    -f          Flatten all locks to the least-significant bit.
+    -d DEVICE   Device to communicate with Arduino [default: /dev/ttyACM0].
+    -h, --help  Display this message.
+    --version   Show version information.
+
+```
+
 # Development
 
 ```
@@ -128,4 +150,3 @@ python3 -m venv env
 . env/bin/activate
 pip install -e .
 ```
-
