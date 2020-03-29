@@ -11,9 +11,9 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
     ],
-    packages=('maintenance',),
+    packages=('maintenance', 'maintenance.tools', 'maintenance.redis', 'maintenance.config'),
     package_dir={'': 'src'},
-    install_requires=['docopt', 'daemonize', 'requests', 'psutil', 'redis', 'selenium'],
+    install_requires=['docopt', 'daemonize', 'requests', 'psutil', 'redis', 'selenium', 'fabric'],
     python_requires='>=3',
     entry_points={
         'console_scripts': [

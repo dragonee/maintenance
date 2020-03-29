@@ -2,13 +2,14 @@
 Get lengths (in full seconds) of all videos present in a directory.
 
 Usage:
-    video-lengths [-f FORMAT] [-c CACHE] DIRECTORY
+    video-lengths [-f FORMAT] [-c CACHE] [-t] DIRECTORY
     video-lengths -h | --help
     video-lengths --version
 
 Options:
     -f FORMAT   Format - text or json [default: text].
     -c CACHE    Cache lengths. Assume files don't change.
+    -t          Sort by last modified time.
     -h, --help  Display this message.
     --version   Show version information.
 
@@ -97,6 +98,9 @@ def main():
     if cache_file:
         with open(cache_file, 'w') as f:
             json.dump(items, f)
+
+    if arguments['-t']:
+        items = {k: v for k, v in sorted(items.items(), key=lambda i: os.path.getmtime(i[0]))}
 
     print(format_function(items))
 
