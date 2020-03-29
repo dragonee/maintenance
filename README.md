@@ -68,6 +68,21 @@ This program uses webscraping, because currently Youtube API cannot access
 Watch Later Playlist.
 ```
 
+## yt-download-watch-later
+
+```
+Download Youtube Watch Later playlist to a local directory, eternalize it,
+then remove playlist.
+
+Usage:
+    yt-download-watch-later [options]
+
+Options:
+    -h, --help  Display this message.
+    --version   Show version information.
+
+```
+
 # Development
 
 ```
