@@ -117,21 +117,26 @@ def main():
         chromedriver_binary=conf.chromedriver_binary
     )
 
-    # Required by cookies to be properly set
-    driver.get("https://www.youtube.com")
+    try:
+        # Required by cookies to be properly set
+        driver.get("https://www.youtube.com")
 
-    # Set cookies
-    cookies = os.path.expanduser(arguments['-c'] or conf.cookies)
+        # Set cookies
+        cookies = os.path.expanduser(arguments['-c'] or conf.cookies)
 
-    consume(would_decorate_driver_with_cookies(
-        driver,
-        cookies
-    ))
+        consume(would_decorate_driver_with_cookies(
+            driver,
+            cookies
+        ))
 
-    driver.get("https://www.youtube.com/playlist?list=WL&disable_polymer=1")
+        driver.get("https://www.youtube.com/playlist?list=WL&disable_polymer=1")
 
-    number = arguments['-n']
-    if number:
-        number = int(number)
+        number = arguments['-n']
+        if number:
+            number = int(number)
 
-    consume(would_click_delete_buttons(driver), number)
+        consume(would_click_delete_buttons(driver), number)
+    finally:
+        driver.quit()
+
+
