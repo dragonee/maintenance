@@ -24,6 +24,7 @@ setup(
             'yt-download-watch-later = maintenance.tools.youtube_pipeline:main',
             'video-feed = maintenance.tools.video_feed:main',
             'video-lengths = maintenance.tools.video_lengths:main',
+            'arduino = maintenance.tools.arduino:main',
             'coordinate-arduino = maintenance.services.coordinate_arduino:main',
         ],
     }
