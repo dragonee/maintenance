@@ -27,7 +27,7 @@ import time
 import redis
 
 from ..config.coordinate import CoordinateConfigFile
-
+from ..arduino_api import Message
 
 def main():
     arguments = docopt(__doc__, version=VERSION)
@@ -44,21 +44,22 @@ def main():
 
     r = redis.Redis(conf.server)
 
-    with serial.Serial(device) as ser:
-        ser.write(b'\x00')
+    with serial.Serial(device, timeout=1.0) as ser:
+        lastval = Message.led()
+        ser.write(lastval)
 
-        lastval = 0
         while True:
             val = 0
 
-            for (i, l) in enumerate(locks):
-                if not flatten:
-                    val += r.exists(l) * 2**i
-                else:
-                    val |= int(r.exists(l))
+            lock_values = [r.exists(l) for l in locks]
+
+            if flatten:
+                val = Message.led(any(lock_values))
+            else:
+                val = Message.led(*lock_values)
 
             if val != lastval:
-                ser.write(val.to_bytes(1, 'little'))
+                ser.write(val)
                 lastval = val
 
             time.sleep(1)
