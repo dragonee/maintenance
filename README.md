@@ -143,6 +143,27 @@ Options:
 
 ```
 
+## arduino
+
+```
+Send a message to Arduino Coordinate device.
+
+Usage:
+    arduino [-d DEVICE] relay [RELAYS...]
+    arduino [-d DEVICE] led [LEDS...]
+    arduino -h | --help
+    arduino --version
+
+RELAYS can be from {0, 1}
+LEDS can be from {0, 1, 2, 3}
+
+Options:
+    -d DEVICE   Device to communicate with Arduino [default: /dev/ttyACM0].
+    -h, --help  Display this message.
+    --version   Show version information.
+
+```
+
 # Development
 
 ```
