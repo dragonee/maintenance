@@ -197,6 +197,39 @@ user1=pass1, ...    Will store passwords given.
 user1=, ...         Won't ask now, will ask for a new one when unarchiving.
 ```
 
+## archive-pgsql
+
+```
+Save PostgreSQL database dump and user info for restoration later.
+
+Usage:
+    archive-pgsql [options] DATABASE DUMP_DIRECTORY
+    archive-pgsql [options] DATABASES... -o OUT_DUMP
+    archive-pgsql --check DIRECTORY
+    archive-pgsql -h | --help
+    archive-pgsql --version
+
+Options:
+    -c OUT_CONFIG   Write config to the specified file [default: -]
+    -o OUT_DUMP     Write dumps to the specified directory.
+    --user USER     Username.
+    --pass PASS     Use this password.
+    --host HOST     Use this host [default: localhost].
+    --users USERS   A comma-separated lists of user=password pairs.
+                    See USER-PASSWORD PAIRS below to
+    --check DIRECTORY   Check if this plugin can archive this directory.
+    -h, --help      Display this message.
+    --version       Show version information.
+
+USER-PASSWORD PAIRS
+
+There are three ways to specify user-password pairs:
+
+user1, ...          Will ask for passwords.
+user1=pass1, ...    Will store passwords given.
+user1=, ...         Won't ask now, will ask for a new one when unarchiving.
+```
+
 # Development
 
 ```

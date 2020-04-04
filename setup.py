@@ -27,6 +27,7 @@ setup(
             'arduino = maintenance.tools.arduino:main',
             'coordinate-arduino = maintenance.services.coordinate_arduino:main',
             'archive-mysql = maintenance.tools.archive_mysql:main',
+            'archive-pgsql = maintenance.tools.archive_pgsql:main',
 
         ],
     }
