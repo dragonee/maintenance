@@ -26,6 +26,8 @@ setup(
             'video-lengths = maintenance.tools.video_lengths:main',
             'arduino = maintenance.tools.arduino:main',
             'coordinate-arduino = maintenance.services.coordinate_arduino:main',
+            'archive-mysql = maintenance.tools.archive_mysql:main',
+
         ],
     }
 )
