@@ -164,6 +164,39 @@ Options:
 
 ```
 
+## archive-mysql
+
+```
+Save MySQL database dump and user info for restoration later.
+
+Usage:
+    archive-mysql [options] DATABASE DUMP_DIRECTORY
+    archive-mysql [options] DATABASES... -o OUT_DUMP
+    archive-mysql --check DIRECTORY
+    archive-mysql -h | --help
+    archive-mysql --version
+
+Options:
+    -c OUT_CONFIG   Write config to the specified file [default: -]
+    -o OUT_DUMP     Write dumps to the specified directory.
+    --user USER     Username.
+    --pass PASS     Use this password.
+    --host HOST     Use this host [default: localhost].
+    --users USERS   A comma-separated lists of user=password pairs.
+                    See USER-PASSWORD PAIRS below to
+    --check DIRECTORY   Check if this plugin can archive this directory.
+    -h, --help      Display this message.
+    --version       Show version information.
+
+USER-PASSWORD PAIRS
+
+There are three ways to specify user-password pairs:
+
+user1, ...          Will ask for passwords.
+user1=pass1, ...    Will store passwords given.
+user1=, ...         Won't ask now, will ask for a new one when unarchiving.
+```
+
 # Development
 
 ```
