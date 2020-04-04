@@ -86,7 +86,7 @@ def main():
                 arguments['DUMP_DIRECTORY'] or arguments['-o'],
                 "{}.sql".format(database)
             ),
-            database,
+            '--databases', database,
         ])
 
     if arguments['--users']:
