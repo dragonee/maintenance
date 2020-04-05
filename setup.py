@@ -29,6 +29,7 @@ setup(
             'archive-mysql = maintenance.tools.archive_mysql:main',
             'archive-pgsql = maintenance.tools.archive_pgsql:main',
             'archive-compress = maintenance.tools.archive_compress:main',
+            'archive-explore-wordpress = maintenance.tools.archive_explore_wordpress:main',
 
         ],
     }
