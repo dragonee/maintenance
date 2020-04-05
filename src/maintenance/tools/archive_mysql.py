@@ -43,7 +43,6 @@ from ..config.archive_database import ArchiveDatabaseConfigFile
 from ..files import smart_open
 from ..console import getpass_until_valid, getpass_twice_until_valid, input_until_valid, ask_for
 from ..strings import _regex_splitter
-from ..archive.hooks import Hooks
 
 import sys, os
 import getpass
@@ -146,7 +145,6 @@ def main():
     conf = ArchiveDatabaseConfigFile()
 
     conf.dbtype = 'MySQL'
-    conf.app_hooks = Hooks.ARCHIVE_MYSQL_HOOKS
 
     databases = arguments['DATABASES'] or [arguments['DATABASE']]
     dumped_databases = []
