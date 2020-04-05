@@ -13,7 +13,7 @@ setup(
     ],
     packages=('maintenance', 'maintenance.tools', 'maintenance.redis', 'maintenance.config', 'maintenance.services'),
     package_dir={'': 'src'},
-    install_requires=['docopt', 'daemonize', 'requests', 'psutil', 'redis', 'selenium', 'fabric', 'pyserial'],
+    install_requires=['docopt', 'daemonize', 'requests', 'psutil', 'redis', 'selenium', 'fabric', 'pyserial', 'environs', 'mysql-connector-python'],
     python_requires='>=3',
     entry_points={
         'console_scripts': [
