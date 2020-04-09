@@ -6,6 +6,8 @@ import os
 import posixpath
 import stat
 
+import subprocess
+from pathlib import Path
 
 class Transfer(BaseTransfer):
     def get(self, remote, local=None, preserve_mode=True, callback=None):
@@ -226,3 +228,20 @@ class Transfer(BaseTransfer):
             local=local,
             connection=self.connection,
         )
+
+    def rsync_put(self, local, remote):
+        f = Path(local)
+
+        if f.exists() and f.is_dir():
+            local_path = "{}/".format(str(f))
+        else:
+            local_path = str(f)
+
+        args = [
+            'rsync', '-avzs',
+            '--progress', '-e', 'ssh',
+            '{}'.format(local_path),
+            '{}@{}:{}/'.format(self.connection.user, self.connection.host, remote)
+        ]
+
+        return subprocess.check_call(args)
