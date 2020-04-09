@@ -30,6 +30,7 @@ setup(
             'archive-pgsql = maintenance.tools.archive_pgsql:main',
             'eternalize = maintenance.tools.eternalize:main',
             'eternalize-locate = maintenance.tools.eternalize_locate:main',
+            'eternalize-resolve-conflict = maintenance.tools.eternalize_resolve_conflict:main',
 
         ],
     }
