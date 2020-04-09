@@ -88,15 +88,8 @@ def handle_enoent(response, c, file=None, **kwargs):
 
     return True
 
-# XXX should do three-way merge
 def handle_eexists(response, c, **kwargs):
-    if response['files_differ']:
-        print("EEXIST: There is another file in {}.".format(response['to']))
-        return False
-
-    # do not delete remote file, next synchronization will handle it
-
-    return True
+    return c.run('eternalize-resolve-conflict "{}" "{}"'.format(response['from'], response['to'])).ok
 
 def handle_einval(response, c, **kwargs):
     print("EINVAL: Couldn't find matching path for {}.".format(response['from']))

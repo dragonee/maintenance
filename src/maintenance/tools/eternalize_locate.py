@@ -93,7 +93,6 @@ def locate(real_path, target_path, pattern):
             'status': 'EEXIST',
             'from': str(real_path),
             'to': str(target_file),
-            'files_differ': real_path.stat().st_size != target_file.stat().st_size,
         }
 
     return {

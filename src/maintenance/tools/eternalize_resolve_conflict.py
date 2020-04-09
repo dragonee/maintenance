@@ -17,6 +17,7 @@ from pathlib import Path
 from docopt import docopt
 
 import subprocess
+import shutil
 
 def main():
     arguments = docopt(__doc__, version=VERSION)
@@ -46,6 +47,8 @@ def main():
         ]
 
         subprocess.check_call(args)
+
+        shutil.rmtree(file)
 
 
 
