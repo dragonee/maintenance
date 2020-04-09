@@ -230,6 +230,57 @@ user1=pass1, ...    Will store passwords given.
 user1=, ...         Won't ask now, will ask for a new one when unarchiving.
 ```
 
+## eternalize
+
+```
+Move files from backup to another directory on remote server.
+
+Usage:
+    eternalize [options] FILE...
+
+TARGET can be:
+    Folder
+    Folder/Directory, which will create a directory and put file inside
+    Folder/*, which will try to match the closest directory
+
+Options:
+    -p          Preserve the file on the computer.
+    -s SERVER   Specify server configuration.
+    -d          Dry run (use this for testing).
+    -h, --help  Display this text.
+    --version   Display version information.
+```
+
+## eternalize-locate
+
+```
+Locate files on the endpoint of eternalize command and return them
+in a structured format.
+
+Usage:
+    eternalize-locate [options] PATH TARGET
+
+Options:
+    -b BACKUP   Backup base path.
+    -p PATTERN  Use the following pattern to find directory.
+    -f FORMAT   Set output format (text, json) [default: text].
+    -h, --help  Display this text.
+    --version   Display version information.
+```
+
+## eternalize-resolve-conflict
+
+```
+Resolve conflicts when there are two versions of a file/directory.
+
+Usage:
+    eternalize-resolve-conflict MOVE_FROM MOVE_TO
+
+Options:
+    -h, --help  Display this text.
+    --version   Display version information.
+```
+
 # Development
 
 ```
