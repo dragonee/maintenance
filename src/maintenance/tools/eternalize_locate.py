@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Move files from backup to another directory on remote server.
+Locate files on the endpoint of eternalize command and return them
+in a structured format.
 
 Usage:
     eternalize-locate [options] PATH TARGET
@@ -136,8 +137,3 @@ def main():
         response = output_text(response)
 
     print(response)
-
-
-
-
-

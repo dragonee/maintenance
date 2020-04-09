@@ -20,24 +20,20 @@ Options:
 
 VERSION = '1.0'
 
-import re
-import os
-import sys
 import json
 import shutil
-import telnetlib
+import codecs
 import subprocess
+
 from pathlib import Path
 from pprint import pprint
 
-import codecs
-
 from io import BytesIO
-
-from docopt import docopt
 
 from itertools import chain, islice, repeat
 from operator import itemgetter
+
+from docopt import docopt
 
 from fabric import Connection
 from ..transfer import Transfer
@@ -50,6 +46,7 @@ def mapresponse(getter, default=None, args=[], kwargs={}, **funcs):
         raise RuntimeError(getter(x).lower())
     default_handler = default or _default
     return lambda x: funcs.get(getter(x).lower(), default_handler)(x, *args, **kwargs)
+
 
 def handle_ok(response, c, file=None, **kwargs):
     print("from: {}\nto: {}".format(response['from'], response['to']))
@@ -64,6 +61,7 @@ def handle_ok(response, c, file=None, **kwargs):
 
     return c.run('mv "{}" "{}"'.format(response['from'], response['to'])).ok
 
+
 def handle_emoved(response, c, file=None, **kwargs):
     print("from: {}\nto: {}".format(response['from'], response['to']))
 
@@ -73,6 +71,7 @@ def handle_emoved(response, c, file=None, **kwargs):
         t.rsync_put(file, Path(response['to']))
 
     return True
+
 
 def handle_enoent(response, c, file=None, **kwargs):
     print("from: {}\nto: {}".format(response['from'], response['to']))
@@ -88,18 +87,22 @@ def handle_enoent(response, c, file=None, **kwargs):
 
     return True
 
+
 def handle_eexists(response, c, **kwargs):
     return c.run('eternalize-resolve-conflict "{}" "{}"'.format(response['from'], response['to'])).ok
+
 
 def handle_einval(response, c, **kwargs):
     print("EINVAL: Couldn't find matching path for {}.".format(response['from']))
 
     return False
 
+
 def handle_unknown(response, c, **kwargs):
     print("Unknown status {}".format(response['status']))
 
     return False
+
 
 def perform_move_command(
     c, file, local_base_path,
@@ -219,6 +222,4 @@ def main():
 
             if status and not any([arguments['-p'], arguments['-d']]):
                 remove_file(p)
-
-
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Move files from backup to another directory on remote server.
+Resolve conflicts when there are two versions of a file/directory.
 
 Usage:
     eternalize-resolve-conflict MOVE_FROM MOVE_TO
@@ -49,8 +49,3 @@ def main():
         subprocess.check_call(args)
 
         shutil.rmtree(file)
-
-
-
-
-
