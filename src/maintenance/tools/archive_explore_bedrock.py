@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
 """
-Explore Wordpress configuration and gather metainfo.
+Explore Wordpress Bedrock configuration and gather metainfo.
 
 Usage:
-    archive-explore-wordpress [--db DATABASES] [-o OUTPUT] -m META_DIR DIR
-    archive-explore-wordpress --check DIR
-    archive-explore-wordpress -h | --help
-    archive-explore-wordpress --version
+    archive-explore-bedrock [--db DATABASES] [-o OUTPUT] -m META_DIR DIR
+    archive-explore-bedrock --check DIR
+    archive-explore-bedrock -h | --help
+    archive-explore-bedrock --version
 
 Options:
     --check         Check if directory is a Wordpress instalation, return 0..1.
@@ -73,8 +73,8 @@ def main():
 
     if arguments['--check']:
         value = check_for_existence([
-            path/'wp-config.php',
-            path/'wp-login.php'
+            path/'config/application.php',
+            path/'web/wp/wp-login.php'
         ])
 
         print(value)

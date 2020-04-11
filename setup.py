@@ -30,7 +30,8 @@ setup(
             'archive-pgsql = maintenance.tools.archive_pgsql:main',
             'archive-compress = maintenance.tools.archive_compress:main',
             'archive-explore-wordpress = maintenance.tools.archive_explore_wordpress:main',
-
+            'archive-explore-bedrock = maintenance.tools.archive_explore_bedrock:main',
+            'archive-check = maintenance.tools.archive_check:main',
         ],
     }
 )
