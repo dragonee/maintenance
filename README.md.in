@@ -1,0 +1,32 @@
+# Tools
+
+[$ notify-on-exit]
+[$ notify-when-done]
+[$ coordinate]
+[$ yt-remove-watchlater]
+[$ yt-download-watch-later]
+[$ video-feed]
+[$ video-lengths]
+[$ arduino]
+[$ archive-mysql]
+[$ archive-pgsql]
+[$ eternalize]
+[$ eternalize-locate]
+[$ eternalize-resolve-conflict]
+[$ make-readme]
+
+# Services and daemons
+
+[$ coordinate-arduino]
+
+# Development
+
+```
+python3 -m venv env
+. env/bin/activate
+pip install -e .
+```
+
+## Git hooks
+
+The `hooks` directory has hooks that are useful with this application.
