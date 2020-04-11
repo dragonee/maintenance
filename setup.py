@@ -31,6 +31,7 @@ setup(
             'eternalize = maintenance.tools.eternalize:main',
             'eternalize-locate = maintenance.tools.eternalize_locate:main',
             'eternalize-resolve-conflict = maintenance.tools.eternalize_resolve_conflict:main',
+            'make-readme = maintenance.tools.make_readme:main',
 
         ],
     }
