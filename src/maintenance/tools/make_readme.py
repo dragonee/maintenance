@@ -24,8 +24,10 @@ import sys
 import re
 
 import subprocess
+from multiprocessing import Pool
 
 from docopt import docopt
+
 
 pattern = re.compile(r'^\s*\[\$\s*([\w\-\_]+)\]\s*$')
 
@@ -50,12 +52,34 @@ def doc_for(command_name, fmt_string=TEXT, title_heading="##"):
     )
 
 
+def concurrently_map_to_dict(f, keys):
+    p = Pool()
+    results = p.map(doc_for, keys)
+    p.close()
+
+    return dict(zip(keys, results))
+
+
 def main():
     arguments = docopt(__doc__, version=VERSION)
 
     file = arguments['FILE']
 
     with open(file, 'r') as f:
+        to_process = []
+
+        for line in f:
+            m = pattern.match(line)
+
+            if not m:
+                continue
+
+            to_process.append(m.group(1))
+
+        items = concurrently_map_to_dict(doc_for, to_process)
+
+        f.seek(0)
+
         for line in f:
             m = pattern.match(line)
 
@@ -63,5 +87,5 @@ def main():
                 sys.stdout.write(line)
                 continue
 
-            sys.stdout.write(doc_for(m.group(1)))
+            sys.stdout.write(items[m.group(1)])
 
