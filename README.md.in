@@ -3,17 +3,43 @@
 [$ notify-on-exit]
 [$ notify-when-done]
 [$ coordinate]
+[$ arduino]
+
+# YouTube processing pipeline
+
+This is a suite of programs to download YouTube Watch Later queue, and limit
+the user in watching too much content.
+
 [$ yt-remove-watchlater]
 [$ yt-download-watch-later]
 [$ video-feed]
 [$ video-lengths]
-[$ arduino]
-[$ archive-mysql]
-[$ archive-pgsql]
+[$ make-readme]
+
+# Eternalize
+
+Assuming:
+
+- that you have a workstation and a backup NAS with SSH access;
+- that you backup (through rsync) workstation contents to this server;
+
+the eternalize tool will help you to permanently store the files on the server,
+by moving them from the backup directory to some other specified destination,
+(e.g. Movies, Documents, Pictures), and then, removing them from the workstation.
+
 [$ eternalize]
 [$ eternalize-locate]
 [$ eternalize-resolve-conflict]
-[$ make-readme]
+
+# Archive tool
+
+This is a suite of programs to pack up finished projects (with databases and such),
+and upload them to a specified location on a remote server.
+
+The unarchive command reverses this process.
+
+[$ archive-mysql]
+[$ archive-pgsql]
 
 # Services and daemons
 
