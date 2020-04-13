@@ -21,7 +21,7 @@ VERSION = '1.0'
 from docopt import docopt
 
 import subprocess
-import os
+import os, sys
 import json
 import shutil
 from fabric import Connection
@@ -30,6 +30,8 @@ from itertools import islice
 
 
 from ..config.youtube_feed import YoutubeFeedConfigFile
+from ..strings import sizeof_fmt
+from ..transfer import Transfer
 
 def duration_in_minutes(items):
     return sum(map(int, items.values())) // 60
@@ -48,11 +50,23 @@ def find_minimal_item_set(items, limit):
 
     return items
 
+
 def minutes_to_readable(min):
     if min < 60:
         return "0h {:02d}m".format(min)
 
     return "{}h {:02d}m".format(min // 60, min % 60)
+
+
+def print_transfer_progress(transfered, total):
+    sys.stdout.write('{:7.2f}% [{}/{}]      \r'.format(
+        100 * transfered / total,
+        sizeof_fmt(transfered),
+        sizeof_fmt(total)
+    ))
+
+    sys.stdout.flush()
+
 
 def main():
     arguments = docopt(__doc__, version=VERSION)
@@ -96,6 +110,15 @@ def main():
         for item in remote_files.keys():
             print("Downloading {}...".format(item))
 
-            c.get("{}/{}".format(conf.remote_path, item), os.path.join(dir, item))
+            t = Transfer(c)
+
+            t.get(
+                "{}/{}".format(conf.remote_path, item),
+                os.path.join(dir, item),
+                callback=print_transfer_progress
+            )
+
+            print('')
+
             c.run("rm '{}/{}'".format(conf.remote_path, item))
 
