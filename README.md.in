@@ -4,7 +4,6 @@
 [$ notify-when-done]
 [$ coordinate]
 [$ arduino]
-[$ make-readme]
 
 # YouTube processing pipeline
 
@@ -61,3 +60,6 @@ python3 -m venv env
 pip install -e .
 ```
 
+For ease of development, automated README generation is provided.
+
+[$ make-readme]

@@ -67,27 +67,6 @@ Options:
     --version   Show version information.
 ```
 
-## make-readme (1.0)
-
-```
-Generate automatic command index from a module's docstring.
-
-Usage:
-    make-readme FILE
-    make-readme --help
-    make-readme --version
-
-
-Parses the following tag (one per line):
-    [command-name=path.to.module]
-
-Works when module is installed (e.g. by pip install -e .)
-
-Options:
-    --help     Display this message.
-    --version  Display version information.
-```
-
 # YouTube processing pipeline
 
 This is a suite of programs to download YouTube Watch Later queue, and limit
@@ -483,3 +462,26 @@ python3 -m venv env
 pip install -e .
 ```
 
+For ease of development, automated README generation is provided.
+
+
+## make-readme (1.0)
+
+```
+Generate automatic command index from a module's docstring.
+
+Usage:
+    make-readme FILE
+    make-readme --help
+    make-readme --version
+
+
+Parses the following tag (one per line):
+    [command-name=path.to.module]
+
+Works when module is installed (e.g. by pip install -e .)
+
+Options:
+    --help     Display this message.
+    --version  Display version information.
+```
