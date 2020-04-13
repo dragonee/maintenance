@@ -4,6 +4,7 @@
 [$ notify-when-done]
 [$ coordinate]
 [$ arduino]
+[$ make-readme]
 
 # YouTube processing pipeline
 
@@ -14,7 +15,6 @@ the user in watching too much content.
 [$ yt-download-watch-later]
 [$ video-feed]
 [$ video-lengths]
-[$ make-readme]
 
 # Eternalize
 
@@ -38,8 +38,16 @@ and upload them to a specified location on a remote server.
 
 The unarchive command reverses this process.
 
+[$ archive]
+[$ archive-pack-wordpress]
+[$ archive-pack-bedrock]
+[$ archive-pack-generic]
 [$ archive-mysql]
+[$ archive-teardown-mysql]
 [$ archive-pgsql]
+[$ archive-check]
+[$ archive-compress]
+[$ archive-store-ssh]
 
 # Services and daemons
 
@@ -53,6 +61,3 @@ python3 -m venv env
 pip install -e .
 ```
 
-## Git hooks
-
-The `hooks` directory has hooks that are useful with this application.

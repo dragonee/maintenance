@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
 """
-Explore Wordpress configuration and gather metainfo.
+Pack an existing Bedrock Wordpress installation.
 
 Usage:
-    archive-explore-wordpress [--db DATABASES] [-o OUTPUT] -m META_DIR DIR
-    archive-explore-wordpress --check DIR
-    archive-explore-wordpress -h | --help
-    archive-explore-wordpress --version
+    archive-pack-bedrock [--db DATABASES] [-o OUTPUT] -m META_DIR DIR
+    archive-pack-bedrock --check DIR
+    archive-pack-bedrock -h | --help
+    archive-pack-bedrock --version
 
 Options:
     --check         Check if directory is a Wordpress instalation, return 0..1.
@@ -26,9 +26,11 @@ from pathlib import Path
 import sys
 
 import subprocess
-import re
+
+from environs import Env
 
 from ..strings import _regex_splitter
+
 
 def check_for_existence(paths):
     if any(map(lambda x: x.exists(), paths)):
@@ -36,35 +38,27 @@ def check_for_existence(paths):
 
     return 0.0
 
-regex = re.compile(r'define\s*\([\s\'"]+(?P<name>\w+)[\'",\s]+(?P<value>[^"\']+)[\'",\s]+\)')
 
-def get_config_from_wp_config_file(path):
+def get_config_from_env_file(path):
+    env = Env()
+    env.read_env(path)
+
     config = {
-        'DB_NAME': None,
-        'DB_HOST': None,
-        'DB_USER': None,
-        'DB_PASSWORD': None,
+        'DB_NAME': env('DB_NAME'),
+        'DB_HOST': env('DB_HOST', default='localhost'),
+        'DB_USER': env('DB_USER'),
+        'DB_PASSWORD': env('DB_PASSWORD'),
     }
 
-    with path.open() as f:
-        for line in f:
-            m = regex.match(line.strip())
-
-            if not m:
-                continue
-
-            if m.group(1) not in config.keys():
-                continue
-
-            config[m.group(1)] = m.group(2)
-
     return config
+
 
 def arg_from_config(config, key, arg):
     if config[key]:
         return [arg, config[key]]
 
     return []
+
 
 def main():
     arguments = docopt(__doc__, version=VERSION)
@@ -73,8 +67,8 @@ def main():
 
     if arguments['--check']:
         value = check_for_existence([
-            path/'wp-config.php',
-            path/'wp-login.php'
+            path/'config/application.php',
+            path/'web/wp/wp-login.php'
         ])
 
         print(value)
@@ -82,8 +76,8 @@ def main():
 
     meta = Path(arguments['-m'])
 
-    if (path/'wp-config.php').exists():
-        wp_config = get_config_from_wp_config_file(path/'wp-config.php')
+    if (path/'.env').exists():
+        wp_config = get_config_from_env_file(path/'.env')
 
         users_args = []
         if 'DB_USER' in wp_config and 'DB_PASSWORD' in wp_config:
@@ -105,12 +99,13 @@ def main():
             '-o', str(meta),
         ])
 
-    output = arguments['-o'] or path.parent/"{}.tar.xz".format(path.name)
+    output = arguments['-o'] or path.parent/"{}.tar.gz".format(path.name)
 
     print('compress: create archive at {}'.format(output))
 
     subprocess.check_call([
-        'archive-compress',
+        'archive-compress', '-v',
+        '-f', 'gz',
         '-m', str(meta),
         str(path),
         str(output)

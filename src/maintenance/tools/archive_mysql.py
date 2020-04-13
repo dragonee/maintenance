@@ -139,6 +139,15 @@ def dump_single_database(database, host, credentials_list, output_file):
 
     return credentials
 
+def describe_dumped(conf, file=sys.stdout):
+    print('mysql: databases: {}'.format(
+        ' '.join(conf.databases) or 'none.'
+    ), file=file)
+
+    print('mysql: saved users: {}'.format(
+        ' '.join(conf.users.keys()) or 'none.'
+    ), file=file)
+
 def main():
     arguments = docopt(__doc__, version=VERSION)
 
@@ -150,7 +159,7 @@ def main():
     dumped_databases = []
 
     def _run_dump_with_cache(last_credentials, database):
-        print("mysql: dump database {}...".format(database))
+        print("mysql: dumping database {}...".format(database))
 
         first_credentials = []
         if arguments['--user'] and arguments['--pass']:
@@ -204,6 +213,7 @@ def main():
             t = user.split('=')
 
             if t[0] == 'root':
+                print('mysql: omitting root user...', file=sys.stderr)
                 continue
 
             if len(t) > 1:
@@ -215,7 +225,7 @@ def main():
                     "Password cannot be empty."
                 )
 
-    print('')
+    describe_dumped(conf, file=sys.stderr)
 
     with smart_open(filename=arguments['-c'], pipe=sys.stdout, mode='w') as fp:
         conf.write(fp)

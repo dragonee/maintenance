@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
 """
-Explore Wordpress Bedrock configuration and gather metainfo.
+Pack an existing Wordpress installation.
 
 Usage:
-    archive-explore-bedrock [--db DATABASES] [-o OUTPUT] -m META_DIR DIR
-    archive-explore-bedrock --check DIR
-    archive-explore-bedrock -h | --help
-    archive-explore-bedrock --version
+    archive-pack-wordpress [--db DATABASES] [-o OUTPUT] -m META_DIR DIR
+    archive-pack-wordpress --check DIR
+    archive-pack-wordpress -h | --help
+    archive-pack-wordpress --version
 
 Options:
     --check         Check if directory is a Wordpress instalation, return 0..1.
@@ -73,8 +73,8 @@ def main():
 
     if arguments['--check']:
         value = check_for_existence([
-            path/'config/application.php',
-            path/'web/wp/wp-login.php'
+            path/'wp-config.php',
+            path/'wp-login.php'
         ])
 
         print(value)
@@ -105,12 +105,13 @@ def main():
             '-o', str(meta),
         ])
 
-    output = arguments['-o'] or path.parent/"{}.tar.xz".format(path.name)
+    output = arguments['-o'] or path.parent/"{}.tar.gz".format(path.name)
 
     print('compress: create archive at {}'.format(output))
 
     subprocess.check_call([
-        'archive-compress',
+        'archive-compress', '-v',
+        '-f', 'gz',
         '-m', str(meta),
         str(path),
         str(output)

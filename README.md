@@ -67,6 +67,27 @@ Options:
     --version   Show version information.
 ```
 
+## make-readme (1.0)
+
+```
+Generate automatic command index from a module's docstring.
+
+Usage:
+    make-readme FILE
+    make-readme --help
+    make-readme --version
+
+
+Parses the following tag (one per line):
+    [command-name=path.to.module]
+
+Works when module is installed (e.g. by pip install -e .)
+
+Options:
+    --help     Display this message.
+    --version  Display version information.
+```
+
 # YouTube processing pipeline
 
 This is a suite of programs to download YouTube Watch Later queue, and limit
@@ -146,27 +167,6 @@ Options:
     --version   Show version information.
 ```
 
-## make-readme (1.0)
-
-```
-Generate automatic command index from a module's docstring.
-
-Usage:
-    make-readme FILE
-    make-readme --help
-    make-readme --version
-
-
-Parses the following tag (one per line):
-    [command-name=path.to.module]
-
-Works when module is installed (e.g. by pip install -e .)
-
-Options:
-    --help     Display this message.
-    --version  Display version information.
-```
-
 # Eternalize
 
 Assuming:
@@ -243,6 +243,83 @@ and upload them to a specified location on a remote server.
 The unarchive command reverses this process.
 
 
+## archive (1.0)
+
+```
+Package a specific directory, then store it in a storage.
+
+Usage:
+    archive [options] DIR [--] [ARGS...]
+    archive --help
+    archive --version
+
+Options:
+    -p         Preserve the directory.
+    -s STORAGE  Use specific storage command [default: ssh]
+    --help     Display this message.
+    --version  Display version information.
+```
+
+## archive-pack-wordpress (1.0)
+
+```
+Pack an existing Wordpress installation.
+
+Usage:
+    archive-pack-wordpress [--db DATABASES] [-o OUTPUT] -m META_DIR DIR
+    archive-pack-wordpress --check DIR
+    archive-pack-wordpress -h | --help
+    archive-pack-wordpress --version
+
+Options:
+    --check         Check if directory is a Wordpress instalation, return 0..1.
+    -m META_DIR     Use this directory for meta storage.
+    -o OUTPUT       Write archive to this file.
+    --db DATABASES  A comma-separated list of databases.
+    -h, --help      Display this message.
+    --version       Show version information.
+```
+
+## archive-pack-bedrock (1.0)
+
+```
+Pack an existing Bedrock Wordpress installation.
+
+Usage:
+    archive-pack-bedrock [--db DATABASES] [-o OUTPUT] -m META_DIR DIR
+    archive-pack-bedrock --check DIR
+    archive-pack-bedrock -h | --help
+    archive-pack-bedrock --version
+
+Options:
+    --check         Check if directory is a Wordpress instalation, return 0..1.
+    -m META_DIR     Use this directory for meta storage.
+    -o OUTPUT       Write archive to this file.
+    --db DATABASES  A comma-separated list of databases.
+    -h, --help      Display this message.
+    --version       Show version information.
+```
+
+## archive-pack-generic (1.0)
+
+```
+Pack a generic directory.
+
+Usage:
+    archive-pack-generic [-o OUTPUT] -m META_DIR DIR
+    archive-pack-generic --check DIR
+    archive-pack-generic -h | --help
+    archive-pack-generic --version
+
+Options:
+    --check         Check if directory is a Wordpress instalation, return 0..1.
+    -m META_DIR     Use this directory for meta storage.
+    -o OUTPUT       Write archive to this file.
+    --db DATABASES  A comma-separated list of databases.
+    -h, --help      Display this message.
+    --version       Show version information.
+```
+
 ## archive-mysql (1.0)
 
 ```
@@ -272,6 +349,22 @@ There are three ways to specify user-password pairs:
 user1, ...          Will ask for passwords.
 user1=pass1, ...    Will store passwords given.
 user1=, ...         Won't ask now, will ask for a new one when unarchiving.
+```
+
+## archive-teardown-mysql (1.0)
+
+```
+Drop MySQL databases for this archive.
+
+Usage:
+    archive-teardown-mysql [options] META_DIR
+    archive-teardown-mysql --help
+    archive-teardown-mysql --version
+
+Options:
+    -r REMOTE  Put file in the.
+    --help     Display this message.
+    --version  Display version information.
 ```
 
 ## archive-pgsql (1.0)
@@ -307,6 +400,57 @@ user1=pass1, ...    Will store passwords given.
 user1=, ...         Won't ask now, will ask for a new one when unarchiving.
 ```
 
+## archive-check (1.0)
+
+```
+Wait on specific resource lock and then run a command.
+
+Usage:
+    archive-check [options] DIRS...
+    archive-check --help
+    archive-check --version
+
+Options:
+    -a         Show all entries, even those with 0.0 score.
+    -l         Use long format, even if one item was used.
+    --help     Display this message.
+    --version  Display version information.
+```
+
+## archive-compress (1.0)
+
+```
+Compress meta directory and target directory into one tar archive.
+
+Usage:
+    archive-compress [options] DIR FILE
+    archive-compress -h | --help
+    archive-compress --version
+
+Options:
+    -v              Be verbose.
+    -m META_DIR     Path to meta directory.
+    -f FORMAT       Format: gz, bz2 or xz [default: gz]
+    -h, --help      Display this message.
+    --version       Show version information.
+```
+
+## archive-store-ssh (1.0)
+
+```
+Store a file in the remote storage.
+
+Usage:
+    archive-store-ssh [options] FILE
+    archive-store-ssh --help
+    archive-store-ssh --version
+
+Options:
+    -r REMOTE  Put file in the.
+    --help     Display this message.
+    --version  Display version information.
+```
+
 # Services and daemons
 
 
@@ -339,6 +483,3 @@ python3 -m venv env
 pip install -e .
 ```
 
-## Git hooks
-
-The `hooks` directory has hooks that are useful with this application.

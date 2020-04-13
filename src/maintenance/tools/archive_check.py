@@ -17,41 +17,20 @@ VERSION = '1.0'
 
 
 import subprocess
-import os, sys
+import sys
 
 from functools import partial
-from itertools import chain
 from docopt import docopt
 
 from pathlib import Path
 
-from ..functional import compose, consume
+from ..functional import consume
 from collections import namedtuple
 from operator import itemgetter
 
 from decimal import Decimal
 
-def find_programs_in_directory_startswith(prefix, dir):
-    if not dir.exists():
-        return []
-
-    return filter(lambda x: x.name.startswith(prefix), dir.iterdir())
-
-
-def find_programs_startswith(prefix):
-    dirs = os.environ['PATH'].split(os.pathsep)
-
-    find_programs_in_directory_startswith_prefix = partial(
-        find_programs_in_directory_startswith,
-        prefix
-    )
-
-    dir_listings = map(compose(
-        find_programs_in_directory_startswith_prefix,
-        lambda x: Path(x)
-    ), dirs)
-
-    return list(chain(*dir_listings))
+from ..archive.programs import find_programs_startswith
 
 
 check_dir_results = namedtuple(
@@ -104,7 +83,7 @@ def main():
 
     dirs = arguments['DIRS']
 
-    programs = find_programs_startswith('archive-explore-')
+    programs = find_programs_startswith('archive-pack-')
 
     check_dir_with_programs = partial(check_dir, programs)
 
