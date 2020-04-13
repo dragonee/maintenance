@@ -1,8 +1,0 @@
-#!/bin/bash
-# Regenerates README.md before each commit.
-
-GPATH=$(git rev-parse --show-cdup)
-
-[ -f "$GPATH"env/bin/make-readme ] && "$GPATH"env/bin/make-readme "$GPATH"README.md.in > "$GPATH"README.md
-
-git add "$GPATH"README.md

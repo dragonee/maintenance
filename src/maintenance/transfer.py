@@ -234,14 +234,16 @@ class Transfer(BaseTransfer):
 
         if f.exists() and f.is_dir():
             local_path = "{}/".format(str(f))
+            remote_path = '{}@{}:{}/'.format(self.connection.user, self.connection.host, remote)
         else:
             local_path = str(f)
+            remote_path = '{}@{}:{}'.format(self.connection.user, self.connection.host, remote)
 
         args = [
             'rsync', '-avzs',
             '--progress', '-e', 'ssh',
-            '{}'.format(local_path),
-            '{}@{}:{}/'.format(self.connection.user, self.connection.host, remote)
+            local_path,
+            remote_path
         ]
 
         return subprocess.check_call(args)

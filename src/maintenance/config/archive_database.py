@@ -30,10 +30,10 @@ class ArchiveDatabaseConfigFile:
         c.read(filename)
 
         try:
-            self.dbtype = c['Engine']['dbtype']
-            self.databases = _regex_splitter.split(c['Backup']['databases'])
+            self.dbtype = c['Config']['dbtype']
+            self.databases = list(filter(lambda x: x != '', _regex_splitter.split(c['Backup']['databases'])))
         except KeyError:
-            raise KeyError("This config file requires Engine.dbtype and Backup.databases keys")
+            raise KeyError("This config file requires Config.dbtype and Backup.databases keys")
 
         try:
             self.users = dict(c['Users'])
@@ -43,7 +43,7 @@ class ArchiveDatabaseConfigFile:
     def write(self, fp):
         c = self.get_config()
 
-        c['Engine'] = {
+        c['Config'] = {
             'dbtype': self.dbtype,
         }
 
@@ -56,3 +56,24 @@ class ArchiveDatabaseConfigFile:
         c.write(fp)
 
 
+class AdministrativeUserConfigFile:
+    user = None
+    password = None
+
+    def __init__(self, remote=None):
+        self.reader = ConfigParser()
+
+        self.reader.read(self.paths())
+
+        try:
+            self.password = self.reader['general']['mysql_password']
+            self.user = self.reader['general']['mysql_user']
+
+        except KeyError:
+            raise KeyError("Create ~/.archive.ini file with section [general] containing mysql_user and mysql_password")
+
+    def paths(self):
+        return [
+            '/etc/archive.ini',
+            Path.home() / '.archive.ini',
+        ]
