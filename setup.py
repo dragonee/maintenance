@@ -13,7 +13,7 @@ setup(
     ],
     packages=('maintenance', 'maintenance.tools', 'maintenance.redis', 'maintenance.config', 'maintenance.services', 'maintenance.archive'),
     package_dir={'': 'src'},
-    install_requires=['docopt', 'daemonize', 'requests', 'psutil', 'redis', 'selenium', 'fabric', 'pyserial', 'environs', 'mysql-connector-python'],
+    install_requires=['docopt', 'daemonize', 'requests', 'psutil', 'redis', 'selenium', 'fabric', 'pyserial', 'environs', 'mysql-connector-python', 'pytz'],
     python_requires='>=3',
     entry_points={
         'console_scripts': [
@@ -28,6 +28,7 @@ setup(
             'coordinate-arduino = maintenance.services.coordinate_arduino:main',
             'eternalize = maintenance.tools.eternalize:main',
             'eternalize-locate = maintenance.tools.eternalize_locate:main',
+            'eternalize-snapshot = maintenance.tools.eternalize_snapshot:main',
             'eternalize-resolve-conflict = maintenance.tools.eternalize_resolve_conflict:main',
             'make-readme = maintenance.tools.make_readme:main',
             'archive-mysql = maintenance.tools.archive_mysql:main',
