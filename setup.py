@@ -30,6 +30,7 @@ setup(
             'eternalize-locate = maintenance.tools.eternalize_locate:main',
             'eternalize-resolve-conflict = maintenance.tools.eternalize_resolve_conflict:main',
             'make-readme = maintenance.tools.make_readme:main',
+            'markdown-command = maintenance.tools.markdown_command:main',
             'archive-mysql = maintenance.tools.archive_mysql:main',
             'archive-pgsql = maintenance.tools.archive_pgsql:main',
             'archive-pack-wordpress = maintenance.tools.archive_pack_wordpress:main',

@@ -1,19 +1,25 @@
 # Tools
 
-[$ notify-on-exit]
-[$ notify-when-done]
-[$ coordinate]
-[$ arduino]
+[$ make-readme notify-on-exit]
+
+[$ make-readme notify-when-done]
+
+[$ make-readme coordinate]
+
+[$ make-readme arduino]
 
 # YouTube processing pipeline
 
 This is a suite of programs to download YouTube Watch Later queue, and limit
 the user in watching too much content.
 
-[$ yt-remove-watchlater]
-[$ yt-download-watch-later]
-[$ video-feed]
-[$ video-lengths]
+[$ make-readme yt-remove-watchlater]
+
+[$ make-readme yt-download-watch-later]
+
+[$ make-readme video-feed]
+
+[$ make-readme video-lengths]
 
 # Eternalize
 
@@ -26,9 +32,11 @@ the eternalize tool will help you to permanently store the files on the server,
 by moving them from the backup directory to some other specified destination,
 (e.g. Movies, Documents, Pictures), and then, removing them from the workstation.
 
-[$ eternalize]
-[$ eternalize-locate]
-[$ eternalize-resolve-conflict]
+[$ make-readme eternalize]
+
+[$ make-readme eternalize-locate]
+
+[$ make-readme eternalize-resolve-conflict]
 
 # Archive tool
 
@@ -37,20 +45,29 @@ and upload them to a specified location on a remote server.
 
 The unarchive command reverses this process.
 
-[$ archive]
-[$ archive-pack-wordpress]
-[$ archive-pack-bedrock]
-[$ archive-pack-generic]
-[$ archive-mysql]
-[$ archive-teardown-mysql]
-[$ archive-pgsql]
-[$ archive-check]
-[$ archive-compress]
-[$ archive-store-ssh]
+[$ make-readme archive]
+
+[$ make-readme archive-pack-wordpress]
+
+[$ make-readme archive-pack-bedrock]
+
+[$ make-readme archive-pack-generic]
+
+[$ make-readme archive-mysql]
+
+[$ make-readme archive-teardown-mysql]
+
+[$ make-readme archive-pgsql]
+
+[$ make-readme archive-check]
+
+[$ make-readme archive-compress]
+
+[$ make-readme archive-store-ssh]
 
 # Services and daemons
 
-[$ coordinate-arduino]
+[$ make-readme coordinate-arduino]
 
 # Development
 
@@ -62,4 +79,12 @@ pip install -e .
 
 For ease of development, automated README generation is provided.
 
-[$ make-readme]
+[$ make-readme make-readme]
+
+[$ make-readme markdown-command]
+
+You can use it like this:
+
+```
+markdown_command README.md.in > README.md
+```

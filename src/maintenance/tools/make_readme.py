@@ -1,18 +1,19 @@
 """
-Generate automatic command index from a module's docstring.
+Generate automatic command index from a program.
 
 Usage:
-    make-readme FILE
-    make-readme --help
-    make-readme --version
+    make-readme [options] COMMAND
 
+It outputs a Markdown section with program name, 
+help and version information.
 
-Parses the following tag (one per line):
-    [command-name=path.to.module]
-
-Works when module is installed (e.g. by pip install -e .)
+Works for any installed program that has --help
+and --version options. Especially useful for Docopt.
+It can be used with the following command to generate readme files:
+    pip install -e .
 
 Options:
+    -h LEVEL, --heading LEVEL  Start from hLEVEL heading [default: 2].
     --help     Display this message.
     --version  Display version information.
 """
@@ -24,15 +25,11 @@ import sys
 import re
 
 import subprocess
-from multiprocessing import Pool
 
 from docopt import docopt
 
 
-pattern = re.compile(r'^\s*\[\$\s*([\w\-\_]+)\]\s*$')
-
-TEXT = """
-{title_heading} {command_name} ({version})
+TEXT = """{title_heading} {command_name} ({version})
 
 ```
 {help_text}
@@ -52,40 +49,12 @@ def doc_for(command_name, fmt_string=TEXT, title_heading="##"):
     )
 
 
-def concurrently_map_to_dict(f, keys):
-    p = Pool()
-    results = p.map(doc_for, keys)
-    p.close()
-
-    return dict(zip(keys, results))
-
-
 def main():
     arguments = docopt(__doc__, version=VERSION)
 
-    file = arguments['FILE']
+    command = arguments['COMMAND']
 
-    with open(file, 'r') as f:
-        to_process = []
-
-        for line in f:
-            m = pattern.match(line)
-
-            if not m:
-                continue
-
-            to_process.append(m.group(1))
-
-        items = concurrently_map_to_dict(doc_for, to_process)
-
-        f.seek(0)
-
-        for line in f:
-            m = pattern.match(line)
-
-            if not m:
-                sys.stdout.write(line)
-                continue
-
-            sys.stdout.write(items[m.group(1)])
-
+    print(doc_for(
+        command,
+        title_heading='#' * int(arguments['--heading'])
+    ), end='')

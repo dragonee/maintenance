@@ -1,6 +1,5 @@
 # Tools
 
-
 ## notify-on-exit (1.0)
 
 ```
@@ -71,7 +70,6 @@ Options:
 
 This is a suite of programs to download YouTube Watch Later queue, and limit
 the user in watching too much content.
-
 
 ## yt-remove-watchlater (1.0)
 
@@ -157,7 +155,6 @@ the eternalize tool will help you to permanently store the files on the server,
 by moving them from the backup directory to some other specified destination,
 (e.g. Movies, Documents, Pictures), and then, removing them from the workstation.
 
-
 ## eternalize (1.0)
 
 ```
@@ -220,7 +217,6 @@ This is a suite of programs to pack up finished projects (with databases and suc
 and upload them to a specified location on a remote server.
 
 The unarchive command reverses this process.
-
 
 ## archive (1.0)
 
@@ -432,7 +428,6 @@ Options:
 
 # Services and daemons
 
-
 ## coordinate-arduino (1.0)
 
 ```
@@ -441,7 +436,7 @@ Monitor status of specific Redis locks and communicate it to Arduino.
 Run with supervisor, as it doesn't daemonize or check for its health.
 
 Usage:
-    coordinate-arduino [-d DEVICE] [-f] LOCKS...
+    coordinate-arduino [-d DEVICE] [-s DEVICES] [-f] LOCKS...
     coordinate-arduino -h | --help
     coordinate-arduino --version
 
@@ -450,6 +445,7 @@ LOCKS are an ordered list of Redis keys to poll.
 Options:
     -f          Flatten all locks to the least-significant bit.
     -d DEVICE   Device to communicate with Arduino [default: /dev/ttyACM0].
+    -s DEVICES  Scan for available devices with glob patterns.
     -h, --help  Display this message.
     --version   Show version information.
 ```
@@ -464,24 +460,47 @@ pip install -e .
 
 For ease of development, automated README generation is provided.
 
-
 ## make-readme (1.0)
 
 ```
-Generate automatic command index from a module's docstring.
+Generate automatic command index from a program.
 
 Usage:
-    make-readme FILE
-    make-readme --help
-    make-readme --version
+    make-readme [options] COMMAND
 
+It outputs a Markdown section with program name, 
+help and version information.
 
-Parses the following tag (one per line):
-    [command-name=path.to.module]
+Works for any installed program that has --help
+and --version options. Especially useful for Docopt.
+It can be used with the following command to generate readme files:
+    pip install -e .
 
-Works when module is installed (e.g. by pip install -e .)
+Options:
+    -h LEVEL, --heading LEVEL  Start from hLEVEL heading [default: 2].
+    --help     Display this message.
+    --version  Display version information.
+```
+
+## markdown-command (1.0)
+
+```
+Process a Markdown file, execute commands within 
+and print file contents with executed commands' output.
+
+Usage:
+    markdown-command [options] FILE
+
+The pattern for commands to be executed is:
+    [$ command --with-options -and arguments]
 
 Options:
     --help     Display this message.
     --version  Display version information.
+```
+
+You can use it like this:
+
+```
+markdown_command README.md.in > README.md
 ```
