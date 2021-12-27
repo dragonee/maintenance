@@ -116,7 +116,7 @@ def main():
 
     conf = CoordinateConfigFile()
 
-    pool = redis.ConnectionPool(host=conf.server)
+    pool = redis.ConnectionPool(host=conf.server, password=conf.password)
 
     if len(locks) > 8:
         raise ValueError("Too many locks to watch!")

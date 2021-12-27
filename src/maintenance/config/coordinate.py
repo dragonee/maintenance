@@ -13,6 +13,7 @@ class CoordinateConfigFile:
 
         try:
             self.server = self.reader['Coordinate']['server']
+            self.password = self.reader['Coordinate'].get('password')
         except KeyError:
             raise KeyError("Create ~/.coordinate.ini file with section [Coordinate] containing server")
 

@@ -37,7 +37,7 @@ def main():
 
     config = CoordinateConfigFile()
 
-    r = redis.Redis(arguments['-h'] or config.server)
+    r = redis.Redis(arguments['-h'] or config.server, password=config.password)
 
     callable = partial(subprocess.call, command)
 
