@@ -13,7 +13,7 @@ Options:
     --version  Display version information.
 """
 
-VERSION = '1.0'
+VERSION = '1.0.1'
 
 
 import sys
@@ -29,7 +29,7 @@ from docopt import docopt
 import shlex
 
 
-pattern = re.compile(r'^\s*\[\$\s*([\w\-\_\ ]+)\]\s*$')
+pattern = re.compile(r'^\s*\[\$\s*([^\]]+)\]\s*$')
 
 
 def run_cmd(command_string):
