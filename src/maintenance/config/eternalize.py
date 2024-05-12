@@ -61,7 +61,7 @@ class EternalizeConfigFile:
         }
 
     def add_target_file(self, file):
-        self.reader.readfp(file)
+        self.reader.read_file(file)
 
         self.update_targets()
 
