@@ -12,6 +12,7 @@ TARGET can be:
 
 Options:
     -p          Preserve the file on the computer.
+    -m NAME     Rename the file to new name on the server.
     -s SERVER   Specify server configuration.
     -d          Dry run (use this for testing).
     -h, --help  Display this text.
@@ -107,21 +108,27 @@ def handle_unknown(response, c, **kwargs):
 def perform_move_command(
     c, file, local_base_path,
     remote_backup_path, remote_target_path, remote_pattern,
-    dry=False
+    rename, dry=False
 ):
 
     relative_path = file.relative_to(local_base_path)
 
+    command = 'eternalize-locate -f json -b "{base}"'
+
     if remote_pattern:
-        command = 'eternalize-locate -f json -p "{pattern}" -b "{base}" "{file}" "{tgt}"'
-    else:
-        command = 'eternalize-locate -f json -b "{base}" "{file}" "{tgt}"'
+        command += ' -p "{pattern}"'
+    
+    if rename:
+        command += ' -m "{rename}"'
+
+    command += ' "{file}" "{tgt}"'
 
     result = c.run(command.format(
         base=remote_backup_path,
         file=relative_path,
         tgt=remote_target_path,
-        pattern=remote_pattern
+        pattern=remote_pattern,
+        rename=rename
     ), hide='stdout')
 
     response = json.loads(result.stdout)
@@ -193,6 +200,9 @@ def main():
 
     server_config = conf.servers[server]
 
+    if arguments['-m'] and len(arguments['FILE']) != 2:
+        raise ValueError("-m specified and more than one FILE given")        
+
     with Connection(
         server_config['host'],
         user=server_config['user'],
@@ -214,6 +224,7 @@ def main():
                 remote_backup_path=server_config['remote_path'],
                 remote_target_path=target_config['path'],
                 remote_pattern=target_config['pattern'],
+                rename=arguments['-m'],
                 dry=arguments['-d'],
             )
 

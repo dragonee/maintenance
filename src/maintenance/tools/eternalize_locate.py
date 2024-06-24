@@ -15,6 +15,7 @@ Options:
     -b BACKUP   Backup base path.
     -p PATTERN  Use the following pattern to find directory.
     -f FORMAT   Set output format (text, json) [default: text].
+    -m RENAME   Use different file name for target file.
     -h, --help  Display this text.
     --version   Display version information.
 """
@@ -60,7 +61,7 @@ def resolve_pattern(target, pattern, real_path):
     return target
 
 
-def locate(real_path, target_path, pattern):
+def locate(real_path, target_path, pattern, target_name):
     if pattern:
         try:
             target_path = resolve_pattern(target_path, pattern, real_path)
@@ -71,7 +72,7 @@ def locate(real_path, target_path, pattern):
                 'message': 'Could not find any matching path.'
             }
 
-    target_file = target_path/real_path.name
+    target_file = target_path/target_name
 
     if not real_path.exists() and target_file.exists():
         return {
@@ -128,8 +129,9 @@ def main():
 
     real_path = real_path.expanduser().resolve()
     target_path = Path(target).expanduser().resolve(strict=True)
+    target_name = arguments['-m'] or real_path.name
 
-    response = locate(real_path, target_path, pattern)
+    response = locate(real_path, target_path, pattern, target_name)
 
     if arguments['-f'] == 'json':
         response = output_json(response)
