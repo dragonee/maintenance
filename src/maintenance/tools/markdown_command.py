@@ -9,11 +9,13 @@ The pattern for commands to be executed is:
     [$ command --with-options -and arguments]
 
 Options:
-    --help     Display this message.
-    --version  Display version information.
+    -h, --help               Display this message.
+    --version                Display version information.
+    --dry-run                Do not execute commands, just print them.
+    -O, --only-commands      Only run commands, do not print file contents.
 """
 
-VERSION = '1.0.1'
+VERSION = '1.1'
 
 
 import sys
@@ -62,7 +64,19 @@ def main():
 
             to_process.append(m.group(1))
 
+        if arguments['--dry-run']:
+            for cmd in to_process:
+                print(cmd)
+
+            return
+
         items = concurrently_map_to_dict(run_cmd, to_process)
+
+        if arguments['--only-commands']:
+            for index, (cmd, output) in enumerate(items.items()):
+                print(f'[{index + 1}/{len(items)}] {cmd}\n{output}')
+
+            return
 
         f.seek(0)
 

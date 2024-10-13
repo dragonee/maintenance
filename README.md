@@ -482,7 +482,7 @@ Options:
     --version  Display version information.
 ```
 
-## markdown-command (1.0)
+## markdown-command (1.1)
 
 ```
 Process a Markdown file, execute commands within 
@@ -495,8 +495,10 @@ The pattern for commands to be executed is:
     [$ command --with-options -and arguments]
 
 Options:
-    --help     Display this message.
-    --version  Display version information.
+    -h, --help               Display this message.
+    --version                Display version information.
+    --dry-run                Do not execute commands, just print them.
+    -O, --only-commands      Only run commands, do not print file contents.
 ```
 
 You can use it like this:
