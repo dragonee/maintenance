@@ -13,6 +13,7 @@ Options:
     --version                Display version information.
     --dry-run                Do not execute commands, just print them.
     -O, --only-commands      Only run commands, do not print file contents.
+    -C, --cwd PATH           Change to directory before running commands.
 """
 
 VERSION = '1.1'
@@ -28,15 +29,20 @@ from multiprocessing import Pool
 
 from docopt import docopt
 
+from functools import partial
+
+from pathlib import Path
+
 import shlex
 
 
 pattern = re.compile(r'^\s*\[\$\s*([^\]]+)\]\s*$')
 
 
-def run_cmd(command_string):
+def run_cmd(command_string, cwd=None):
     return subprocess.check_output(
-        shlex.split(command_string)
+        shlex.split(command_string),
+        cwd=cwd
     ).decode('utf-8')
 
 
@@ -51,9 +57,9 @@ def concurrently_map_to_dict(f, keys):
 def main():
     arguments = docopt(__doc__, version=VERSION)
 
-    file = arguments['FILE']
+    file = Path(arguments['FILE'])
 
-    with open(file, 'r') as f:
+    with file.open('r') as f:
         to_process = []
 
         for line in f:
@@ -69,8 +75,12 @@ def main():
                 print(cmd)
 
             return
+        
+        cwd = file.parent if not arguments['--cwd'] else arguments['--cwd']
 
-        items = concurrently_map_to_dict(run_cmd, to_process)
+        run_cmd_with_cwd = partial(run_cmd, cwd=cwd)
+
+        items = concurrently_map_to_dict(run_cmd_with_cwd, to_process)
 
         if arguments['--only-commands']:
             for index, (cmd, output) in enumerate(items.items()):
