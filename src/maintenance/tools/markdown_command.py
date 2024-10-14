@@ -36,7 +36,7 @@ from pathlib import Path
 import shlex
 
 
-pattern = re.compile(r'^\s*\[\$\s*([^\]]+)\]\s*$')
+pattern = re.compile(r'\[\$\s*(?P<command>[^\]]+)\]')
 
 
 def run_cmd(command_string, cwd=None):
@@ -63,12 +63,14 @@ def main():
         to_process = []
 
         for line in f:
-            m = pattern.match(line)
+            m = pattern.search(line)
 
             if not m:
                 continue
 
-            to_process.append(m.group(1))
+            inline = bool(line[:m.start()].strip() + line[m.end():].strip())
+
+            to_process.append(m.group('command'))
 
         if arguments['--dry-run']:
             for cmd in to_process:
@@ -91,11 +93,16 @@ def main():
         f.seek(0)
 
         for line in f:
-            m = pattern.match(line)
+            m = pattern.search(line)
 
             if not m:
                 sys.stdout.write(line)
                 continue
 
-            sys.stdout.write(items[m.group(1)])
+            inline = bool(line[:m.start()].strip() + line[m.end():].strip())
+
+            if not inline:
+                sys.stdout.write(items[m.group('command')])
+            else:
+                sys.stdout.write(line[:m.start()] + items[m.group('command')].strip() + line[m.end():])
 
