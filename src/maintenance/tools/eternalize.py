@@ -3,7 +3,11 @@
 Move files from backup to another directory on remote server.
 
 Usage:
-    eternalize [options] FILE...
+    eternalize [options] [FILE...]
+    eternalize add [options] TARGET PATH
+
+When called without FILE arguments, displays available targets on the remote server.
+The 'add' command appends a new target configuration to the remote .eternalize.ini file.
 
 TARGET can be:
     Folder
@@ -184,6 +188,69 @@ def load_targets_from_remote(c, conf):
     conf.add_target_file(reader(cache))
 
 
+def display_targets(conf, server):
+    """Display available targets for the specified server."""
+    print(f"Available targets for server '{server}':\n")
+
+    # Filter targets that belong to this server
+    server_prefix = f"{server}:"
+    server_targets = {
+        key[len(server_prefix):]: value
+        for key, value in conf.targets.items()
+        if key.startswith(server_prefix)
+    }
+
+    if not server_targets:
+        print("  No targets configured for this server.")
+        return
+
+    for target_name, target_config in sorted(server_targets.items()):
+        path = target_config.get('path', 'N/A')
+        print(f"  {target_name:20s} -> {path}")
+
+
+def add_target(c, server, target_name, target_path):
+    """Add a new target configuration to the remote .eternalize.ini file."""
+    from configparser import ConfigParser
+
+    t = Transfer(c)
+
+    # Fetch the remote .eternalize.ini file
+    cache = BytesIO()
+    t.get('.eternalize.ini', cache)
+    cache.seek(0)
+
+    # Parse the config file
+    reader = codecs.getreader('utf-8')
+    parser = ConfigParser()
+    parser.read_file(reader(cache))
+
+    # Add the new target section
+    section_name = f"{server}:{target_name}"
+
+    if parser.has_section(section_name):
+        print(f"Warning: Target '{target_name}' already exists for server '{server}'.")
+        print(f"Updating path to: {target_path}")
+    else:
+        parser.add_section(section_name)
+        print(f"Adding target '{target_name}' for server '{server}'.")
+
+    parser.set(section_name, 'path', target_path)
+
+    # Write the updated config back to a buffer
+    output = BytesIO()
+    writer = codecs.getwriter('utf-8')
+    wrapped_output = writer(output)
+    parser.write(wrapped_output)
+    output.seek(0)
+
+    # Upload the modified file back to the remote server
+    t.put(output, '.eternalize.ini')
+
+    print(f"Successfully updated remote .eternalize.ini")
+    print(f"  {target_name:20s} -> {target_path}")
+
+
 def main():
     arguments = docopt(__doc__, version=VERSION)
 
@@ -199,7 +266,29 @@ def main():
         port=server_config['port']
     ) as c:
 
+        # Handle 'add' command
+        # Check both the 'add' argument and if FILE[0] == 'add'
+        if arguments.get('add') or (arguments['FILE'] and arguments['FILE'][0] == 'add'):
+            if arguments.get('add'):
+                target_name = arguments['TARGET']
+                target_path = arguments['PATH']
+            else:
+                # Parse from FILE when docopt matched the first pattern
+                if len(arguments['FILE']) < 3:
+                    print("Error: 'add' command requires TARGET and PATH arguments")
+                    return
+                target_name = arguments['FILE'][1]
+                target_path = arguments['FILE'][2]
+
+            add_target(c, server, target_name, target_path)
+            return
+
         load_targets_from_remote(c, conf)
+
+        # If no files provided, display targets and exit
+        if not arguments['FILE']:
+            display_targets(conf, server)
+            return
 
         for name in arguments['FILE'][:-1]:
             p = Path(name).expanduser().resolve(strict=True)
