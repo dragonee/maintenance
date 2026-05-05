@@ -40,6 +40,7 @@ from operator import itemgetter
 from docopt import docopt
 
 from fabric import Connection
+import paramiko
 from ..transfer import Transfer
 
 from ..config.eternalize import EternalizeConfigFile
@@ -260,55 +261,59 @@ def main():
 
     server_config = conf.servers[server]
 
-    with Connection(
-        server_config['host'],
-        user=server_config['user'],
-        port=server_config['port']
-    ) as c:
+    try:
+        with Connection(
+            server_config['host'],
+            user=server_config['user'],
+            port=server_config['port']
+        ) as c:
 
-        # Handle 'add' command
-        # Check both the 'add' argument and if FILE[0] == 'add'
-        if arguments.get('add') or (arguments['FILE'] and arguments['FILE'][0] == 'add'):
-            if arguments.get('add'):
-                target_name = arguments['TARGET']
-                target_path = arguments['PATH']
-            else:
-                # Parse from FILE when docopt matched the first pattern
-                if len(arguments['FILE']) < 3:
-                    print("Error: 'add' command requires TARGET and PATH arguments")
-                    return
-                target_name = arguments['FILE'][1]
-                target_path = arguments['FILE'][2]
+            # Handle 'add' command
+            # Check both the 'add' argument and if FILE[0] == 'add'
+            if arguments.get('add') or (arguments['FILE'] and arguments['FILE'][0] == 'add'):
+                if arguments.get('add'):
+                    target_name = arguments['TARGET']
+                    target_path = arguments['PATH']
+                else:
+                    # Parse from FILE when docopt matched the first pattern
+                    if len(arguments['FILE']) < 3:
+                        print("Error: 'add' command requires TARGET and PATH arguments")
+                        return
+                    target_name = arguments['FILE'][1]
+                    target_path = arguments['FILE'][2]
 
-            add_target(c, server, target_name, target_path)
-            return
+                add_target(c, server, target_name, target_path)
+                return
 
-        load_targets_from_remote(c, conf)
+            load_targets_from_remote(c, conf)
 
-        # If no files provided, display targets and exit
-        if not arguments['FILE']:
-            display_targets(conf, server)
-            return
+            # If no files provided, display targets and exit
+            if not arguments['FILE']:
+                display_targets(conf, server)
+                return
 
-        for name in arguments['FILE'][:-1]:
-            p = Path(name).expanduser().resolve(strict=True)
-            base = Path(server_config['local_path']).expanduser().resolve(strict=True)
+            for name in arguments['FILE'][:-1]:
+                p = Path(name).expanduser().resolve(strict=True)
+                base = Path(server_config['local_path']).expanduser().resolve(strict=True)
 
-            target_config = target_config_from_argument(conf, server, arguments['FILE'][-1])
+                target_config = target_config_from_argument(conf, server, arguments['FILE'][-1])
 
-            status = perform_move_command(
-                c,
-                p,
-                local_base_path=base,
-                remote_backup_path=server_config['remote_path'],
-                remote_target_path=target_config['path'],
-                remote_pattern=target_config['pattern'],
-                dry=arguments['-d'],
-            )
+                status = perform_move_command(
+                    c,
+                    p,
+                    local_base_path=base,
+                    remote_backup_path=server_config['remote_path'],
+                    remote_target_path=target_config['path'],
+                    remote_pattern=target_config['pattern'],
+                    dry=arguments['-d'],
+                )
 
-            if status:
-                print("Would delete file.")
+                if status:
+                    print("Would delete file.")
 
-            if status and not any([arguments['-p'], arguments['-d']]):
-                remove_file(p)
+                if status and not any([arguments['-p'], arguments['-d']]):
+                    remove_file(p)
+    except paramiko.ssh_exception.NoValidConnectionsError as e:
+        print("errors:", e.errors)
+        raise
 
