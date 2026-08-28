@@ -29,8 +29,6 @@ import redis
 
 import glob
 
-import time
-
 from pathlib import Path
 
 from ..config.coordinate import CoordinateConfigFile
@@ -41,21 +39,28 @@ from ..strings import _regex_splitter
 from itertools import chain, repeat
 from functools import partial, reduce
 
-from ..functional import compose
+from ..functional import compose, changes
+
+
+def get_device_by_path(device):
+    p = Path(device)
+
+    return p if p.exists() else None
+
+
+def get_device_by_patterns(patterns):
+    suitable_paths = chain(*(glob.glob(pattern) for pattern in patterns))
+
+    return next(map(Path, suitable_paths), None)
 
 
 def find_suitable_device(device, patterns):
-    p = Path(device)
+    found = get_device_by_path(device) or get_device_by_patterns(patterns)
 
-    if p.exists():
-        return p
-
-    suitable_paths = chain(*(glob.glob(pattern) for pattern in patterns))
-
-    try:
-        return next(map(lambda x: Path(x), suitable_paths))
-    except StopIteration:
+    if not found:
         raise FileNotFoundError("There is no device under {} and {}".format(device, ', '.join(patterns)))
+
+    return found
 
 
 def get_redis_connection_from_pool(pool):
@@ -66,12 +71,12 @@ def look_after_errors(previous_errors, f):
     try:
         f()
     except BaseException as e:
-        if len(previous_errors) == 0 or str(e) != str(previous_errors[0]):
+        if not previous_errors or str(e) != str(previous_errors[0]):
             print("Error: {}".format(e))
 
         time.sleep(4)
 
-        return tuple([e]) + previous_errors[:9]
+        return [e] + previous_errors[:9]
 
     return previous_errors
 
@@ -80,25 +85,28 @@ def device_to_serial(device_name):
     return serial.Serial(str(device_name), timeout=1.0)
 
 
+def lock_values_to_message(lock_values, flatten=False):
+    if flatten:
+        return Message.led(any(lock_values))
+
+    return Message.led(*lock_values)
+
+
+def observe_locks(r, locks, flatten=False, interval=1):
+    "Yield the message describing the state of locks, once every interval."
+    while True:
+        lock_values = [r.exists(l) for l in locks]
+
+        yield lock_values_to_message(lock_values, flatten=flatten)
+
+        time.sleep(interval)
+
+
 def do_loop(request_serial, request_redis, locks=None, flatten=False):
     with request_redis() as r:
         with request_serial() as ser:
-            lastval = 0
-            while True:
-                val = 0
-
-                lock_values = [r.exists(l) for l in locks]
-
-                if flatten:
-                    val = Message.led(any(lock_values))
-                else:
-                    val = Message.led(*lock_values)
-
-                if val != lastval:
-                    ser.write(val)
-                    lastval = val
-
-                time.sleep(1)
+            for val in changes(observe_locks(r, locks, flatten=flatten)):
+                ser.write(val)
 
 
 def main():
@@ -121,14 +129,16 @@ def main():
     if len(locks) > 8:
         raise ValueError("Too many locks to watch!")
 
-    configured_find_suitable_device = partial(find_suitable_device, device, patterns)
+    def configured_find_suitable_device():
+        return find_suitable_device(device, patterns)
 
-    takes_serial = partial(compose(
+    def requests_redis():
+        return get_redis_connection_from_pool(pool)
+
+    takes_serial = compose(
         device_to_serial,
-        lambda _: configured_find_suitable_device()
-    ), None)
-
-    requests_redis = partial(get_redis_connection_from_pool, pool)
+        configured_find_suitable_device,
+    )
 
     configured_do_loop = partial(
         do_loop,
@@ -138,4 +148,4 @@ def main():
         flatten=flatten
     )
 
-    reduce(look_after_errors, repeat(configured_do_loop), tuple())
+    reduce(look_after_errors, repeat(configured_do_loop), [])

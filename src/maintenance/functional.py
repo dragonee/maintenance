@@ -4,7 +4,36 @@ import collections
 from itertools import islice
 
 def compose(*functions):
-    return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
+    """Compose functions right to left.
+
+    The innermost function is called with whatever arguments the composition
+    was given, so it may take none, one or many; every other function takes
+    the single value returned by its predecessor.
+    """
+    if not functions:
+        return lambda x: x
+
+    *outer, innermost = functions
+
+    def composed(*args, **kwargs):
+        return functools.reduce(
+            lambda value, f: f(value),
+            reversed(outer),
+            innermost(*args, **kwargs)
+        )
+
+    return composed
+
+
+def changes(iterable):
+    "Yield only those values that differ from the previously yielded one."
+    previous = object()
+
+    for value in iterable:
+        if value != previous:
+            yield value
+
+            previous = value
 
 
 def consume(iterator, n=None):
