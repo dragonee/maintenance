@@ -346,13 +346,21 @@ class PostgresqlPlugin(Plugin):
             '--port', str(port),
             '--dbname', database,
             '--quiet',
+            # Never read the target user's ~/.psqlrc: it can print things,
+            # set a pager, or change output formatting, none of which a
+            # scripted teardown wants.
+            '--no-psqlrc',
             '--command', statement,
         ]
 
         if os.geteuid() != 0 or superuser != 'postgres':
             command = ['sudo', '-u', superuser] + command
 
-        subprocess.check_call(command)
+        # Run from a directory the postgres user can actually read. Left in
+        # somebody's home directory, psql complains "could not change
+        # directory to ...: Permission denied" once per invocation, which
+        # is noise at best and looks like a failure at worst.
+        subprocess.check_call(command, cwd='/')
 
     def remove(self, request):
         databases = request.data.get('databases') or []
@@ -375,9 +383,14 @@ class PostgresqlPlugin(Plugin):
 
             # PostgreSQL will not drop a database that anyone is connected
             # to, and a web application usually still has a pool open.
+            #
+            # PERFORM inside a DO block rather than a bare SELECT: the
+            # SELECT would print a row per connection it closed, which is
+            # output nobody asked for on a channel that should stay quiet.
             self.psql(request,
-                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-                "WHERE datname = {} AND pid <> pg_backend_pid();".format(
+                "DO $$ BEGIN PERFORM pg_terminate_backend(pid) "
+                "FROM pg_stat_activity WHERE datname = {} "
+                "AND pid <> pg_backend_pid(); END $$;".format(
                     quote_literal(database)
                 ))
 

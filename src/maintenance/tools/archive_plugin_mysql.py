@@ -274,8 +274,10 @@ class MysqlPlugin(Plugin):
         if os.geteuid() != 0:
             command = ['sudo'] + command
 
+        # cwd='/' for the same reason as psql: sudo into another account
+        # from a home directory it cannot read produces a warning per call.
         process = subprocess.Popen(command, stdin=subprocess.PIPE,
-                                   universal_newlines=True)
+                                   universal_newlines=True, cwd='/')
         process.communicate(script)
 
         if process.returncode != 0:
