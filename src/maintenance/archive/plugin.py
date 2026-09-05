@@ -319,6 +319,22 @@ def run(plugin_class, argv=None):
         print("{}: malformed request: {}".format(plugin.name, e), file=sys.stderr)
         return 2
 
+    # Everything from here writes to stderr, including subprocesses.
+    #
+    # stdout is the response channel, and a plugin's whole job is running
+    # other programs. `caddy reload`, `nginx -t` and `psql --command` all
+    # write to stdout, and a child process inherits it, so their output
+    # lands in the middle of the YAML the driver is trying to parse. Rather
+    # than remembering to redirect at every call site -- and getting it
+    # wrong in the one that matters -- the real stdout is set aside here and
+    # file descriptor 1 is pointed at stderr for the duration. Anything that
+    # prints, ours or not, becomes progress output; only the response
+    # reaches the driver.
+    sys.stdout.flush()
+
+    response_fd = os.dup(1)
+    os.dup2(2, 1)
+
     try:
         response = plugin.handle(Request(payload))
     except Exception as e:
@@ -331,13 +347,16 @@ def run(plugin_class, argv=None):
         print('{}: {}'.format(plugin.name, e), file=sys.stderr)
         return 1
 
-    yaml.dump(
-        response,
-        sys.stdout,
-        Dumper=yaml.SafeDumper,
-        default_flow_style=False,
-        sort_keys=False,
-        allow_unicode=True,
-    )
+    sys.stdout.flush()
+
+    with os.fdopen(response_fd, 'w') as response_stream:
+        yaml.dump(
+            response,
+            response_stream,
+            Dumper=yaml.SafeDumper,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+        )
 
     return 0
