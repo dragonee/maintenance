@@ -37,7 +37,7 @@ import sys
 
 from pathlib import Path
 
-from ..archive.plugin import Discovery, Plugin, needs_privilege, run
+from ..archive.plugin import Discovery, Plugin, needs_privilege, remove_command, run
 
 
 class PathsPlugin(Plugin):
@@ -122,9 +122,13 @@ class PathsPlugin(Plugin):
             if not path.exists():
                 continue
 
-            self.log("removing {}", path)
+            try:
+                command = remove_command(path, recursive=True)
+            except ValueError as e:
+                self.log("{}", e)
+                continue
 
-            command = ['rm', '-rf', str(path)]
+            self.log("removing {}", path)
 
             if sudo and os.geteuid() != 0 and needs_privilege(path):
                 command = ['sudo'] + command

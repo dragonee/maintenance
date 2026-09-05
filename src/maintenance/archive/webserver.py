@@ -18,7 +18,7 @@ import subprocess
 
 from pathlib import Path
 
-from .plugin import Discovery, Plugin, needs_privilege
+from .plugin import Discovery, Plugin, needs_privilege, remove_command
 
 
 #: Files bigger than this are not server configuration and reading them
@@ -240,9 +240,13 @@ class WebserverPlugin(Plugin):
 
     def remove_file(self, path, sudo):
         "Delete one file, reaching for sudo only if it is actually needed."
-        return self.run_privileged(
-            ['rm', '-f', str(path)], sudo and needs_privilege(path)
-        )
+        try:
+            command = remove_command(path)
+        except ValueError as e:
+            self.log("{}", e)
+            return 1
+
+        return self.run_privileged(command, sudo and needs_privilege(path))
 
     def remove(self, request):
         data = request.data

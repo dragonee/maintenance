@@ -43,6 +43,71 @@ from pathlib import Path
 import yaml
 
 
+#: Paths no installation ever legitimately occupies. A plan is meant to be
+#: edited by hand, and a truncation that leaves "/home/sites/vhosts" where
+#: "/home/sites/vhosts/example.com" belonged turns a cleanup into an outage.
+PROTECTED_PATHS = frozenset((
+    '/', '/bin', '/boot', '/dev', '/etc', '/home', '/lib', '/lib32', '/lib64',
+    '/media', '/mnt', '/opt', '/proc', '/root', '/run', '/sbin', '/srv',
+    '/sys', '/tmp', '/usr', '/var',
+))
+
+
+def check_removable(path):
+    """Return a path safe to delete, or raise ValueError explaining why not.
+
+    Three things are refused: a relative path, whose meaning depends on
+    where the command happened to be run; a system directory or a bare
+    home directory; and anything that normalises into one, so that a stray
+    `..` cannot walk a plan up into `/`.
+
+    This is a guard against typos and bad edits, not against a hostile
+    plan. Anyone who can write your plan file can already run your shell.
+    """
+    text = str(path)
+
+    if not os.path.isabs(text):
+        raise ValueError(
+            "refusing to remove a relative path: {!r}".format(text)
+        )
+
+    resolved = os.path.normpath(text)
+
+    if resolved in PROTECTED_PATHS:
+        raise ValueError(
+            "refusing to remove the protected path {!r}".format(resolved)
+        )
+
+    parts = [part for part in resolved.split('/') if part]
+
+    if len(parts) < 2:
+        raise ValueError(
+            "refusing to remove the top-level path {!r}".format(resolved)
+        )
+
+    if parts[0] == 'home' and len(parts) == 2:
+        raise ValueError(
+            "refusing to remove the home directory {!r}".format(resolved)
+        )
+
+    if resolved == os.path.normpath(os.path.expanduser('~')):
+        raise ValueError(
+            "refusing to remove your own home directory {!r}".format(resolved)
+        )
+
+    return resolved
+
+
+def remove_command(path, recursive=False):
+    """Build an rm argument list that cannot be misread.
+
+    The `--` matters: a file called "-rf" or "--no-preserve-root" is a
+    perfectly legal name, and without the separator rm would read it as
+    options rather than as the thing to delete.
+    """
+    return ['rm', '-rf' if recursive else '-f', '--', check_removable(path)]
+
+
 def needs_privilege(path):
     """Whether deleting ``path`` needs more rights than we currently have.
 

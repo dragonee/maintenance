@@ -168,6 +168,7 @@ class DjangoPlugin(Plugin):
 
         discovery = Discovery(score=1.0, data={
             'database': {'engine': engine, 'settings': str(relative)},
+            'markers': [str(relative)],
         })
 
         discovery.var('{}.databases'.format(engine), [default['NAME']])

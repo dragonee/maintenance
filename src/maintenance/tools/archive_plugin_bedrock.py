@@ -64,6 +64,10 @@ class BedrockPlugin(Plugin):
 
         discovery = Discovery(score=1.0, data={
             'config': env_file.name if env_file.exists() else None,
+            'markers': [
+                marker for marker in ('config/application.php', 'web/wp/wp-login.php')
+                if (directory / marker).exists()
+            ],
         })
 
         settings = self.settings(directory)
