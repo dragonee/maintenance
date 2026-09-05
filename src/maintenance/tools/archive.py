@@ -46,6 +46,7 @@ Options:
 VERSION = '2.0'
 
 
+import os
 import shutil
 import subprocess
 import sys
@@ -57,17 +58,29 @@ from docopt import docopt
 
 from ..archive import protocol, secrets
 from ..archive.environment import SecretRequirement
+from ..archive.plugin import check_removable, needs_privilege, remove_command
 from ..archive.plan import Plan, PluginEntry
 from ..console import ask_for
+from ..strings import sizeof_fmt
 
 
 def confirm(question, assume_yes=False):
+    """Ask before doing something irreversible.
+
+    A run with no terminal behind it -- cron, a pipeline -- gets a refusal
+    rather than a traceback, and never a silent yes.
+    """
     if assume_yes:
         return True
 
     print(question)
 
-    return ask_for(['y', 't'], ['n', 'f'], case_sensitive=False)
+    try:
+        return ask_for(['y', 't'], ['n', 'f'], case_sensitive=False)
+    except EOFError:
+        print("archive: no terminal to confirm on; use -y to proceed "
+              "without asking.", file=sys.stderr)
+        return False
 
 
 def plugin_order(plugins):
@@ -274,6 +287,155 @@ def report_related(plan):
                   file=sys.stderr)
 
 
+def note(*parts):
+    "Render the trailing (a, b) annotation, skipping anything empty."
+    shown = [part for part in parts if part]
+
+    return ' ({})'.format(', '.join(shown)) if shown else ''
+
+
+def removal_paths(plan):
+    """Every path the plan will delete, with the plugin that claimed it.
+
+    One entry per path: a directory stands for its whole tree rather than
+    being expanded, which is the only way this stays readable for an
+    installation of thirteen thousand files.
+    """
+    found = []
+    seen = set()
+
+    for entry in plan.in_order():
+        for key in ('files', 'paths'):
+            for item in entry.data.get(key) or []:
+                if isinstance(item, dict):
+                    candidates = list(item.get('links') or []) + [item.get('path')]
+                else:
+                    candidates = [item]
+
+                for path in candidates:
+                    if path and path not in seen:
+                        seen.add(path)
+                        found.append((path, entry.name))
+
+    return found
+
+
+def removal_databases(plan):
+    "The databases the plan will drop, as one line each."
+    lines = []
+    vars = plan.environment.vars
+
+    for engine in ('mysql', 'postgresql'):
+        databases = vars.get('{}.databases'.format(engine)) or []
+        host = vars.get('{}.host'.format(engine)) or 'localhost'
+        port = vars.get('{}.port'.format(engine))
+
+        for database in databases:
+            lines.append('{} database {} on {}{}'.format(
+                engine, database, host, ':{}'.format(port) if port else ''
+            ))
+
+    return lines
+
+
+def check_directory_matches(plan, directory):
+    """Refuse a plan whose directory no longer holds what it described.
+
+    The guard against system paths cannot help with the likeliest bad
+    edit: trimming the site name off the end and leaving the directory
+    that contains every site. Nothing about "/home/sites/vhosts" looks
+    dangerous, and it is one keystroke away from a directory that is.
+
+    So the plan is checked against itself. A plugin records the file it
+    recognised the installation by -- wp-config.php, a settings module --
+    and if that file is not there, this is not the installation the plan
+    was made for, whatever the path says.
+    """
+    missing = []
+
+    for entry in plan.in_order():
+        for marker in entry.data.get('markers') or []:
+            if not (directory / marker).exists():
+                missing.append((entry.name, marker))
+
+    if not missing:
+        return
+
+    raise ValueError(
+        "{} does not contain what this plan describes ({}); "
+        "refusing to remove it. Has the plan been edited, or the "
+        "installation already removed?".format(
+            directory,
+            ', '.join('{} expected {}'.format(n, m) for n, m in missing),
+        )
+    )
+
+
+def survey_directory(directory):
+    """Measure the tree and find what this user cannot delete.
+
+    Unlinking a file needs write and execute on its *parent* directory,
+    so only directories have to be tested -- cheap even for a large tree.
+    Knowing this before starting is the whole point: shutil.rmtree deletes
+    as it walks, so discovering halfway through that a file belongs to
+    somebody else leaves a half-removed installation behind.
+    """
+    files = 0
+    total = 0
+    blocked = []
+
+    def unreadable(error):
+        blocked.append(getattr(error, 'filename', str(directory)))
+
+    if not os.access(str(directory.parent), os.W_OK | os.X_OK):
+        blocked.append(str(directory.parent))
+
+    for root, directories, names in os.walk(str(directory), onerror=unreadable):
+        if not os.access(root, os.W_OK | os.X_OK):
+            blocked.append(root)
+
+        files += len(names)
+
+        for name in names:
+            try:
+                total += os.lstat(os.path.join(root, name)).st_size
+            except OSError:
+                pass
+
+    return files, total, sorted(set(blocked))
+
+
+def remove_directory(directory, blocked, sudo=True):
+    """Delete the installation's directory, with sudo when it is needed.
+
+    Falls back to sudo even when the survey said it was not required: the
+    survey can be wrong about an immutable file or a mount, and finishing
+    the job matters more than being right about it in advance.
+    """
+    if not blocked:
+        try:
+            shutil.rmtree(str(directory))
+            return
+        except OSError as e:
+            if not sudo or os.geteuid() == 0:
+                raise
+
+            protocol.warn("could not remove {} as this user ({}); "
+                          "retrying with sudo".format(directory, e))
+
+    if os.geteuid() == 0:
+        shutil.rmtree(str(directory))
+        return
+
+    if not sudo:
+        raise RuntimeError(
+            "{} is not yours to delete and sudo is disabled".format(directory)
+        )
+
+    if subprocess.call(['sudo'] + remove_command(directory, recursive=True)) != 0:
+        raise RuntimeError("failed to remove {} even with sudo".format(directory))
+
+
 def read_plan(arguments):
     with open(arguments['PLAN']) as fp:
         return Plan.read(fp)
@@ -368,8 +530,6 @@ def pack(arguments):
 
 
 def _sizeof(path):
-    from ..strings import sizeof_fmt
-
     try:
         return sizeof_fmt(path.stat().st_size)
     except OSError:
@@ -380,11 +540,37 @@ def remove(arguments):
     plan = read_plan(arguments)
     directory = Path(plan.directory).expanduser()
 
-    print("This will permanently remove:", file=sys.stderr)
-    print("  {}".format(directory), file=sys.stderr)
+    if not arguments['--keep-directory']:
+        # Both checks run before a single database is dropped: a plan
+        # naming something it should not is a plan to abandon, not to
+        # half-run.
+        check_removable(directory)
 
-    for entry in plan.in_order():
-        print("  {}: {}".format(entry.name, summarise(entry.data)), file=sys.stderr)
+        if directory.exists():
+            check_directory_matches(plan, directory)
+
+    print("This will permanently remove:", file=sys.stderr)
+
+    blocked = []
+
+    if directory.exists() and not arguments['--keep-directory']:
+        files, total, blocked = survey_directory(directory)
+
+        print("  {}{}".format(directory, note(
+            '{} files, {}'.format(files, sizeof_fmt(total)),
+            'sudo' if blocked else None,
+        )), file=sys.stderr)
+    elif not arguments['--keep-directory']:
+        print("  {} (already gone)".format(directory), file=sys.stderr)
+
+    for path, plugin in removal_paths(plan):
+        print("  {}{}".format(path, note(
+            plugin,
+            'sudo' if needs_privilege(path) else None,
+        )), file=sys.stderr)
+
+    for line in removal_databases(plan):
+        print("  {}".format(line), file=sys.stderr)
 
     report_related(plan)
 
@@ -402,8 +588,11 @@ def remove(arguments):
         return 0
 
     if directory.exists():
-        print("removing directory {}...".format(directory), file=sys.stderr)
-        shutil.rmtree(directory)
+        print("removing directory {}{}...".format(
+            directory, ' with sudo' if blocked else ''
+        ), file=sys.stderr)
+
+        remove_directory(directory, blocked)
 
     return 0
 
@@ -420,7 +609,8 @@ def main():
 
     try:
         sys.exit(action(arguments))
-    except (protocol.PluginError, secrets.MissingSecret, ValueError) as e:
+    except (protocol.PluginError, secrets.MissingSecret, ValueError,
+            RuntimeError, OSError) as e:
         print("archive: {}".format(e), file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:

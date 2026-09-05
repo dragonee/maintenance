@@ -40,7 +40,7 @@ import sys
 from pathlib import Path
 
 from ..archive.detect import find_dsn, read_env_file
-from ..archive.plugin import Discovery, Plugin, needs_privilege, run
+from ..archive.plugin import Discovery, Plugin, needs_privilege, remove_command, run
 
 
 ENGINES = {
@@ -282,9 +282,13 @@ class EnvPlugin(Plugin):
             else:
                 continue
 
-            self.log("removing {}", path)
+            try:
+                command = remove_command(path)
+            except ValueError as e:
+                self.log("{}", e)
+                continue
 
-            command = ['rm', '-f', str(path)]
+            self.log("removing {}", path)
 
             if os.geteuid() != 0 and needs_privilege(path):
                 command = ['sudo'] + command

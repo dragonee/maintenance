@@ -46,6 +46,8 @@ class WordpressPlugin(Plugin):
 
         discovery = Discovery(score=1.0, data={
             'config': str(config_file.relative_to(directory)),
+            # What identifies this directory as the one the plan describes.
+            'markers': [str(config_file.relative_to(directory))],
         })
 
         if not database:

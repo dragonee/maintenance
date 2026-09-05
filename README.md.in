@@ -152,7 +152,37 @@ server where sudo would silently do the wrong thing. `socket` and `peer`
 never ask for a password at all.
 
 Removing *files* needs no configuration: `sudo` is reached for only on paths
-that are genuinely not yours to delete.
+that are genuinely not yours to delete. That includes the installation's own
+directory, which on a shared server usually belongs to the account that
+serves it rather than the one doing the archiving. Whether sudo will be
+needed is worked out before anything is deleted and shown in the
+confirmation, because `rmtree` deletes as it walks -- discovering halfway
+through that a file belongs to somebody else would leave a half-removed
+installation behind.
+
+## What removal refuses to do
+
+Nothing reaches a shell. Every command is built as an argument list, so a
+path containing a space, a semicolon, a newline or `$(...)` is passed
+through as one argument and never interpreted. Deletions carry a `--`
+separator as well, since a file called `-rf` is a legal name.
+
+Before a single database is dropped, the plan is checked twice:
+
+- the directory must be an absolute path, and not a system directory or a
+  bare home directory -- normalised first, so a stray `..` cannot walk a
+  plan up into `/`;
+- the directory must still contain what the plan says it found. A detector
+  records the file it recognised the installation by, and if `wp-config.php`
+  or the settings module is not there, this is not the installation the plan
+  was written for.
+
+The second check is the one that matters in practice. `/home/sites/vhosts`
+looks nothing like a dangerous path, and it is one keystroke away from
+`/home/sites/vhosts/example.com`.
+
+These guard against a typo or a bad edit, not against a hostile plan file.
+Anyone who can write your plan can already run your shell.
 
 [$ make-readme archive]
 
