@@ -201,6 +201,25 @@ def summarise(data, limit=4):
     return 'no recorded state'
 
 
+def claimed_paths(plan):
+    """Every path some plugin in this plan intends to delete.
+
+    Plugins record what they claim under `files` or `paths`, as bare
+    strings or as mappings with a `path` key, so both shapes are read.
+    """
+    claimed = set()
+
+    for entry in plan.plugins:
+        for key in ('files', 'paths'):
+            for item in entry.data.get(key) or []:
+                path = item.get('path') if isinstance(item, dict) else item
+
+                if path:
+                    claimed.add(str(path))
+
+    return claimed
+
+
 def report_related(plan):
     """Say what was found near this installation but will not be touched.
 
@@ -219,18 +238,40 @@ def report_related(plan):
     if not found:
         return
 
+    claimed = claimed_paths(plan)
+    conflicts = []
+
     print("\nLeft alone (names this site but serves something else):",
           file=sys.stderr)
 
     for name, related in found:
         for item in related:
+            path = item.get('path')
             sites = item.get('sites') or []
+
+            # Another plugin may have been told to remove the very thing
+            # this one is declining to touch -- most often because it was
+            # passed to --path by hand. Saying "left alone" about a file
+            # that is about to be deleted would be worse than saying
+            # nothing at all.
+            if path in claimed:
+                conflicts.append((name, path))
+                continue
 
             print("  {}: {}{}".format(
                 name,
-                item.get('path'),
+                path,
                 ' ({})'.format(', '.join(sites)) if sites else '',
             ), file=sys.stderr)
+
+    if conflicts:
+        print("\nWARNING: these were reported as serving something else, "
+              "but another plugin in this plan will remove them anyway:",
+              file=sys.stderr)
+
+        for name, path in conflicts:
+            print("  {} says leave; the plan says remove: {}".format(name, path),
+                  file=sys.stderr)
 
 
 def read_plan(arguments):
