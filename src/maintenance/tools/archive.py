@@ -21,16 +21,17 @@ run from the environment, from the installation's own config files, or from
 you.
 
 Usage:
-    archive discover [options] [--path=PATH]... DIR
+    archive discover [options] [--path=PATH]... [--env=ENV]... DIR
     archive pack [options] PLAN
     archive remove [options] PLAN
-    archive [options] [--path=PATH]... DIR
+    archive [options] [--path=PATH]... [--env=ENV]... DIR
     archive --help
     archive --version
 
 Options:
     -o FILE           Write the plan (discover) or the archive (pack) here.
     --path=PATH       Extra file or directory to archive and remove.
+    --env=ENV         Env file describing this installation, in or out of tree.
     -a                Also report which plugins found nothing.
     -s STORAGE        Storage backend to use [default: ssh]
     -k                Keep the archive locally; do not store it.
@@ -98,7 +99,7 @@ def discover(arguments):
     plan = Plan(directory)
     environment = plan.environment
 
-    options = {'paths': arguments['--path']}
+    options = {'paths': arguments['--path'], 'env': arguments['--env']}
     skipped = []
 
     for order, name, program in plugin_order(protocol.find_plugins()):
@@ -171,7 +172,7 @@ def summarise(data, limit=4):
     parts = []
 
     for key, value in sorted(data.items()):
-        if key in ('sudo', 'reload') or value in (None, [], {}, ''):
+        if key in ('sudo', 'reload', 'related') or value in (None, [], {}, ''):
             continue
 
         if isinstance(value, list):
@@ -189,7 +190,47 @@ def summarise(data, limit=4):
 
         parts.append('{}: {}'.format(key, rendered))
 
-    return '; '.join(parts) or 'no recorded state'
+    if parts:
+        return '; '.join(parts)
+
+    # Distinguish "found nothing" from "found something and is deliberately
+    # not touching it", which the Left alone section explains below.
+    if data.get('related'):
+        return 'nothing to remove'
+
+    return 'no recorded state'
+
+
+def report_related(plan):
+    """Say what was found near this installation but will not be touched.
+
+    A plugin puts anything it recognised but deliberately did not claim
+    under `related`. Server configuration is the usual case: a vhost that
+    names this site but proxies to its replacement looks exactly like one
+    worth deleting, right up until it takes production down. Showing it
+    before the confirmation is the whole point of showing it at all.
+    """
+    found = [
+        (entry.name, entry.data['related'])
+        for entry in plan.in_order()
+        if entry.data.get('related')
+    ]
+
+    if not found:
+        return
+
+    print("\nLeft alone (names this site but serves something else):",
+          file=sys.stderr)
+
+    for name, related in found:
+        for item in related:
+            sites = item.get('sites') or []
+
+            print("  {}: {}{}".format(
+                name,
+                item.get('path'),
+                ' ({})'.format(', '.join(sites)) if sites else '',
+            ), file=sys.stderr)
 
 
 def read_plan(arguments):
@@ -303,6 +344,8 @@ def remove(arguments):
 
     for entry in plan.in_order():
         print("  {}: {}".format(entry.name, summarise(entry.data)), file=sys.stderr)
+
+    report_related(plan)
 
     secrets.resolve(plan, 'remove', ask=not arguments['--no-ask'])
     secrets.describe(plan.environment, 'remove')

@@ -139,6 +139,13 @@ vars:
   postgresql.superuser_auth: auto   # auto | password | peer
 ```
 
+On a machine running several PostgreSQL clusters, every call names its port
+and uses the client binary matching that cluster's major version. This is
+not fussiness: `pg_dump` refuses to dump a server newer than itself, and two
+clusters routinely hold databases of the same name -- an old application on
+one and its replacement on another -- so a `psql` that does not name a port
+will cheerfully drop the wrong one.
+
 `auto` uses a password if one turns up and sudo otherwise. `password`
 insists on one and fails loudly if it is missing, which is what you want on a
 server where sudo would silently do the wrong thing. `socket` and `peer`
@@ -152,6 +159,10 @@ that are genuinely not yours to delete.
 [$ make-readme archive-plugin-wordpress]
 
 [$ make-readme archive-plugin-bedrock]
+
+[$ make-readme archive-plugin-django]
+
+[$ make-readme archive-plugin-env]
 
 [$ make-readme archive-plugin-mysql]
 

@@ -36,6 +36,8 @@ setup(
             'archive-store-ssh = maintenance.tools.archive_store_ssh:main',
             'archive-plugin-wordpress = maintenance.tools.archive_plugin_wordpress:main',
             'archive-plugin-bedrock = maintenance.tools.archive_plugin_bedrock:main',
+            'archive-plugin-django = maintenance.tools.archive_plugin_django:main',
+            'archive-plugin-env = maintenance.tools.archive_plugin_env:main',
             'archive-plugin-mysql = maintenance.tools.archive_plugin_mysql:main',
             'archive-plugin-postgresql = maintenance.tools.archive_plugin_postgresql:main',
             'archive-plugin-nginx = maintenance.tools.archive_plugin_nginx:main',

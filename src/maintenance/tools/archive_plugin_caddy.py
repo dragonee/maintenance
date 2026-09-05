@@ -25,10 +25,11 @@ class CaddyPlugin(WebserverPlugin):
     name = 'caddy'
     version = VERSION
 
+    #: Caddy has no settled layout -- a single Caddyfile, an imported
+    #: vhosts.d or conf.d, loose .conf files beside the Caddyfile -- so the
+    #: whole configuration tree is searched rather than named directories.
     config_paths = (
-        '/etc/caddy/Caddyfile',
-        '/etc/caddy/conf.d',
-        '/etc/caddy/sites-enabled',
+        '/etc/caddy',
         '/usr/local/etc/caddy',
         '/opt/homebrew/etc/caddy',
     )

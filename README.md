@@ -316,6 +316,13 @@ vars:
   postgresql.superuser_auth: auto   # auto | password | peer
 ```
 
+On a machine running several PostgreSQL clusters, every call names its port
+and uses the client binary matching that cluster's major version. This is
+not fussiness: `pg_dump` refuses to dump a server newer than itself, and two
+clusters routinely hold databases of the same name -- an old application on
+one and its replacement on another -- so a `psql` that does not name a port
+will cheerfully drop the wrong one.
+
 `auto` uses a password if one turns up and sudo otherwise. `password`
 insists on one and fails loudly if it is missing, which is what you want on a
 server where sudo would silently do the wrong thing. `socket` and `peer`
@@ -349,16 +356,17 @@ run from the environment, from the installation's own config files, or from
 you.
 
 Usage:
-    archive discover [options] [--path=PATH]... DIR
+    archive discover [options] [--path=PATH]... [--env=ENV]... DIR
     archive pack [options] PLAN
     archive remove [options] PLAN
-    archive [options] [--path=PATH]... DIR
+    archive [options] [--path=PATH]... [--env=ENV]... DIR
     archive --help
     archive --version
 
 Options:
     -o FILE           Write the plan (discover) or the archive (pack) here.
     --path=PATH       Extra file or directory to archive and remove.
+    --env=ENV         Env file describing this installation, in or out of tree.
     -a                Also report which plugins found nothing.
     -s STORAGE        Storage backend to use [default: ssh]
     -k                Keep the archive locally; do not store it.
@@ -390,6 +398,62 @@ Recognise a Bedrock-flavoured WordPress installation.
 Bedrock keeps its credentials in a dotenv file and its WordPress under
 web/wp, so it needs its own detector, but it publishes the same mysql.*
 variables as archive-plugin-wordpress and is handled identically downstream.
+```
+
+## archive-plugin-django (1.0)
+
+```
+Read a Django settings module and describe the database it configures.
+
+Django keeps its database in a DATABASES dict, usually in a settings
+package split across several files. Where that dict is written out
+literally this plugin reads it; where it is computed -- `env.db()` and
+friends -- there is nothing to read, and the credentials are in an env
+file that archive-plugin-env should be pointed at instead:
+
+    archive discover /srv/example.com \
+        --env /srv/environments/example/example.env
+
+The settings file is parsed, never imported or executed. Importing a
+project's settings to find out where its database lives would run whatever
+that project runs at import time, on a machine where the application is
+being decommissioned; ast.literal_eval reads the dict and refuses anything
+that is not a plain value.
+
+sqlite is recognised and deliberately ignored: the database is a file
+inside the directory, so the archive already contains it.
+```
+
+## archive-plugin-env (1.0)
+
+```
+Read an env file and describe the database it points at.
+
+Applications keep their credentials in a dotenv file, and often not inside
+the directory being archived: a shared environments directory beside the
+docroot is a common arrangement, and a site archived without it is a site
+that cannot be restored. Point this plugin at the file:
+
+    archive discover /srv/example.com \
+        --env /srv/environments/example/example.env
+
+The file is copied into the archive, and removed with the installation when
+it lives outside the directory. A dotenv usually holds far more than a
+database password -- API tokens, mail credentials, signing keys -- so the
+archive is only as safe as wherever you store it. The plan itself stays
+clean: it records the path and the database settings, never a value.
+
+Two shapes are understood, which between them cover most frameworks:
+
+    DATABASE_URL=postgres://user:pass@localhost:5433/example
+    DB_CONNECTION=mysql, DB_DATABASE, DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT
+
+A `.env` in the archived directory is picked up automatically, but only
+when no earlier plugin has already described a database -- a detector that
+understands the application knows better than a generic reader.
+
+Set ARCHIVE_ENV_PATHS to a colon-separated list to always search the same
+locations without passing --env every time.
 ```
 
 ## archive-plugin-mysql (2.0)
@@ -436,6 +500,12 @@ projects are usually recognised by that alone.
 
 pg_dump and psql are driven through a 0600 PGPASSFILE rather than a
 password on the command line or in the environment.
+
+Where a machine runs several clusters side by side, every call names its
+port and uses the client binary matching that cluster's major version --
+pg_dump refuses to dump a server newer than itself, and two clusters
+routinely hold databases of the same name, an old application on one and
+its replacement on another.
 
 Removal needs a superuser. If a password is available -- from
 ARCHIVE_POSTGRESQL_SUPERUSER_PASSWORD, from ~/.archive.ini, or from a prompt

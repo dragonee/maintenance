@@ -70,8 +70,8 @@ class WebserverPlugin(Plugin):
                 if child.is_file():
                     yield child
 
-    def mentions(self, path, directory):
-        "Whether a config file points at the directory being archived."
+    def read_config(self, path):
+        "The text of a plausible config file, or None if it is not one."
         try:
             if path.stat().st_size > MAX_CONFIG_SIZE:
                 return None
@@ -79,14 +79,20 @@ class WebserverPlugin(Plugin):
             return None
 
         try:
-            text = path.read_text(errors='replace')
+            return path.read_text(errors='replace')
         except OSError:
             return None
 
-        if str(directory) not in text:
-            return None
+    def names_for(self, directory):
+        """The domain names a directory is likely to be known by.
 
-        return text
+        Vhost directories are named after the site they hold, so the
+        directory name is what links a config to an installation when the
+        config never mentions a path.
+        """
+        name = directory.name.lower()
+
+        return {name, 'www.' + name}
 
     def sites(self, text):
         if self.site_pattern is None:
@@ -104,50 +110,75 @@ class WebserverPlugin(Plugin):
         return found
 
     def collect(self, directory):
-        """Find the configuration for a directory, one entry per real file.
+        """Sort the machine's configuration into what serves this directory
+        and what merely shares its name.
 
-        sites-enabled/foo.conf is normally a symlink to sites-available/foo.conf,
-        and searching both turns up the same configuration twice. Keying on
-        the resolved path collapses that into a single entry which records
-        the real file and every symlink pointing at it, whichever order the
-        search happens to find them in.
+        A config *serves* the directory when it references the path, and
+        only those are safe to delete alongside it. A config that names the
+        site but points somewhere else is a different thing entirely: a
+        redirect kept alive after the site behind it went away, or -- far
+        more dangerous -- a vhost that now proxies to the replacement
+        application. Deleting one of those takes down something that is
+        still running, so they are reported and never claimed.
+
+        sites-enabled/foo.conf is normally a symlink to
+        sites-available/foo.conf, and searching both turns up the same
+        configuration twice; keying on the resolved path collapses that
+        into one entry recording the real file and the symlinks pointing at
+        it, whichever order the search finds them in.
         """
         entries = {}
+        related = {}
         sites = []
+        names = self.names_for(directory)
 
         for path in self.candidate_files():
-            text = self.mentions(path, directory)
+            text = self.read_config(path)
 
             if text is None:
                 continue
 
+            config_sites = self.sites(text)
             real = os.path.realpath(str(path))
-            entry = entries.setdefault(real, {'path': real, 'links': []})
 
-            if str(path) != real and str(path) not in entry['links']:
-                entry['links'].append(str(path))
+            if str(directory) in text:
+                entry = entries.setdefault(real, {'path': real, 'links': []})
 
-            for site in self.sites(text):
-                if site not in sites:
-                    sites.append(site)
+                if str(path) != real and str(path) not in entry['links']:
+                    entry['links'].append(str(path))
+
+                for site in config_sites:
+                    if site not in sites:
+                        sites.append(site)
+
+                continue
+
+            if names & {site.lower() for site in config_sites}:
+                related.setdefault(real, {'path': real, 'sites': config_sites})
 
         for entry in entries.values():
             if not entry['links']:
                 del entry['links']
 
-        return list(entries.values()), sites
+        # A config that serves the directory is not also "related" to it.
+        for real in entries:
+            related.pop(real, None)
+
+        return list(entries.values()), list(related.values()), sites
 
     # -- modes -----------------------------------------------------------
 
     def discover(self, request):
         directory = request.directory
 
-        files, sites = self.collect(directory)
+        files, related, sites = self.collect(directory)
 
-        if not files:
+        if not files and not related:
             return Discovery(score=0.0)
 
-        discovery = Discovery(score=1.0, data={
+        # A weaker claim when all we have is a name in common: it puts the
+        # finding in the plan without putting the file on the removal list.
+        discovery = Discovery(score=1.0 if files else 0.5, data={
             'files': files,
             # Whether sudo may be used at all. Set it to false in the plan
             # for a server you administer as yourself; even when true, it
@@ -159,8 +190,20 @@ class WebserverPlugin(Plugin):
         discovery.var('{}.sites'.format(self.name), sites)
         discovery.var('{}.files'.format(self.name), [f['path'] for f in files])
 
-        self.log("{} config file(s){}", len(files),
-                 ' for ' + ', '.join(sites) if sites else '')
+        if files:
+            self.log("{} config file(s){}", len(files),
+                     ' for ' + ', '.join(sites) if sites else '')
+
+        if related:
+            discovery.data['related'] = related
+            discovery.var('{}.related'.format(self.name),
+                          [entry['path'] for entry in related])
+
+            self.log("{} config file(s) name this site but do not serve it; "
+                     "NOT scheduled for removal:", len(related))
+
+            for entry in related:
+                self.log("  {} ({})", entry['path'], ', '.join(entry['sites']))
 
         return discovery
 
@@ -204,6 +247,10 @@ class WebserverPlugin(Plugin):
     def remove(self, request):
         data = request.data
         sudo = data.get('sudo', os.geteuid() != 0)
+
+        for entry in data.get('related') or []:
+            self.log("leaving {} alone; it names this site but serves "
+                     "something else", entry['path'])
 
         removed = 0
 

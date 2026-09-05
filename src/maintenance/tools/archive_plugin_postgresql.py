@@ -11,6 +11,12 @@ projects are usually recognised by that alone.
 pg_dump and psql are driven through a 0600 PGPASSFILE rather than a
 password on the command line or in the environment.
 
+Where a machine runs several clusters side by side, every call names its
+port and uses the client binary matching that cluster's major version --
+pg_dump refuses to dump a server newer than itself, and two clusters
+routinely hold databases of the same name, an old application on one and
+its replacement on another.
+
 Removal needs a superuser. If a password is available -- from
 ARCHIVE_POSTGRESQL_SUPERUSER_PASSWORD, from ~/.archive.ini, or from a prompt
 -- it connects over TCP with it. If none is, it falls back to
@@ -54,6 +60,45 @@ def quote_identifier(name):
         raise ValueError("Refusing to use {!r} as a PostgreSQL identifier".format(name))
 
     return '"{}"'.format(name)
+
+
+def cluster_version(port):
+    """Major version of the local cluster listening on ``port``.
+
+    One machine can run several clusters at once, and pg_dump refuses to
+    dump a server newer than itself. Debian's /usr/bin/pg_dump is a wrapper
+    that picks a binary per cluster, but only when no explicit host was
+    given -- and we give one -- so the version has to be resolved here.
+    """
+    try:
+        output = subprocess.check_output(
+            ['pg_lsclusters', '--no-header'],
+            universal_newlines=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+    for line in output.splitlines():
+        fields = line.split()
+
+        if len(fields) >= 3 and fields[2] == str(port):
+            return fields[0]
+
+    return None
+
+
+def program_for(name, port):
+    "The client binary matching the cluster on ``port``, if there is one."
+    version = cluster_version(port)
+
+    if version:
+        candidate = Path('/usr/lib/postgresql') / version / 'bin' / name
+
+        if candidate.exists():
+            return str(candidate)
+
+    return name
 
 
 def superuser_from_archive_ini():
@@ -105,6 +150,7 @@ class PostgresqlPlugin(Plugin):
         discovery.var('postgresql.host', host)
         discovery.var('postgresql.port', port)
         discovery.var('postgresql.user', user)
+        discovery.var('postgresql.version', cluster_version(port))
         discovery.var('postgresql.superuser', 'postgres')
 
         # auto  use a password if one turns up, otherwise sudo/peer
@@ -207,7 +253,7 @@ class PostgresqlPlugin(Plugin):
 
             try:
                 subprocess.check_call([
-                    'pg_dump',
+                    program_for('pg_dump', port),
                     '--host', str(host),
                     '--port', str(port),
                     '--username', user or 'postgres',
@@ -253,8 +299,10 @@ class PostgresqlPlugin(Plugin):
                 "resolved; set ARCHIVE_POSTGRESQL_SUPERUSER_PASSWORD or use 'peer'."
             )
 
+        port = request.data.get('port') or DEFAULT_PORT
+
         if auth == 'peer' or not password:
-            return self.psql_as_peer(superuser, database, statement)
+            return self.psql_as_peer(superuser, database, statement, port)
 
         return self.psql_with_password(request, superuser, database, statement, password)
 
@@ -268,7 +316,7 @@ class PostgresqlPlugin(Plugin):
 
         try:
             subprocess.check_call([
-                'psql',
+                program_for('psql', port),
                 '--host', str(host),
                 '--port', str(port),
                 '--username', superuser,
@@ -280,9 +328,26 @@ class PostgresqlPlugin(Plugin):
         finally:
             passfile.unlink()
 
-    def psql_as_peer(self, superuser, database, statement):
-        "Local socket connection as the postgres OS user."
-        command = ['psql', '--dbname', database, '--quiet', '--command', statement]
+    def psql_as_peer(self, superuser, database, statement, port):
+        """Local socket connection as the postgres OS user.
+
+        The port is essential, not cosmetic. Where several clusters run
+        side by side they routinely hold databases of the same name -- an
+        old application on one and its replacement on another -- and a psql
+        with no port silently talks to whichever cluster is the default.
+        Dropping a database is not something to do in the wrong one.
+
+        No --host: over a Unix socket the port still selects the cluster,
+        peer authentication keeps working, and pg_wrapper picks the
+        matching binary of its own accord.
+        """
+        command = [
+            program_for('psql', port),
+            '--port', str(port),
+            '--dbname', database,
+            '--quiet',
+            '--command', statement,
+        ]
 
         if os.geteuid() != 0 or superuser != 'postgres':
             command = ['sudo', '-u', superuser] + command
