@@ -33,7 +33,7 @@ Options:
     --path=PATH       Extra file or directory to archive and remove.
     --env=ENV         Env file describing this installation, in or out of tree.
     -a                Also report which plugins found nothing.
-    -s STORAGE        Storage backend to use [default: ssh]
+    -s STORAGE        Storage backend to use, or 'none' to skip [default: ssh]
     -k                Keep the archive locally; do not store it.
     -m META_DIR       Read metadata from an unpacked archive (remove).
     -y                Do not ask for confirmation.
@@ -461,7 +461,13 @@ def run_plugins(plan, mode, meta_dir=None, reverse=False):
         ))
 
 
+#: sysexits.h EX_CONFIG, as returned by a storage backend that has nothing
+#: configured to store to.
+EX_CONFIG = 78
+
+
 def store(archive_path, storage):
+    "Hand the archive to a storage backend. Returns its exit status."
     if 'archive-store-' in storage:
         name = storage
     else:
@@ -472,7 +478,33 @@ def store(archive_path, storage):
     if program is None:
         raise ValueError("Invalid storage program {}".format(name))
 
-    subprocess.check_call([program, str(archive_path)])
+    return subprocess.call([program, str(archive_path)])
+
+
+def preserve(archive_path, archive_dir):
+    """Move a finished archive out of the temporary directory.
+
+    Packing is the expensive half of this tool, and the temporary
+    directory is removed whatever happens. An archive that took twenty
+    minutes to build must not evaporate because an upload failed, was
+    declined, or had nowhere to go -- so it is moved somewhere the user
+    can find it and the path is reported.
+    """
+    if archive_dir not in archive_path.parents:
+        return archive_path
+
+    destination = Path.cwd() / archive_path.name
+    attempt = 0
+
+    while destination.exists():
+        attempt += 1
+        destination = Path.cwd() / '{}.{}{}'.format(
+            archive_path.name.split('.tar')[0], attempt, '.tar.gz'
+        )
+
+    shutil.move(str(archive_path), str(destination))
+
+    return destination
 
 
 def pack(arguments):
@@ -515,13 +547,52 @@ def pack(arguments):
         if arguments['-k']:
             return 0
 
+        if arguments['-s'] == 'none':
+            # Asked for explicitly, so there is nothing to confirm and
+            # nothing has gone wrong.
+            kept = preserve(archive_path, archive_dir)
+
+            protocol.warn("storage skipped (-s none); the archive is at "
+                          "{}".format(kept))
+
+            return 0
+
         if not confirm("Do you want to store this archive?", arguments['-y']):
+            kept = preserve(archive_path, archive_dir)
+
+            protocol.warn("not stored; the archive is at {}".format(kept))
+
             return 1
 
-        store(archive_path, arguments['-s'])
+        status = store(archive_path, arguments['-s'])
+
+        if status == EX_CONFIG:
+            # Nothing configured to store to is an ordinary state, not a
+            # failure: the archive is built and worth keeping either way.
+            kept = preserve(archive_path, archive_dir)
+
+            protocol.warn(
+                "storage is not configured, so nothing was uploaded.\n"
+                "The archive is at {}.\n"
+                "Move it somewhere else before running 'archive remove', or "
+                "configure storage and run 'archive pack' again.".format(kept)
+            )
+
+            return 0
+
+        if status != 0:
+            kept = preserve(archive_path, archive_dir)
+
+            protocol.warn(
+                "storing failed (status {}); the archive has been kept "
+                "at {}".format(status, kept)
+            )
+
+            return 1
 
         print("archive: stored. Run 'archive remove {}' to tear the "
               "installation down.".format(arguments['PLAN']), file=sys.stderr)
+
     finally:
         shutil.rmtree(meta_dir, ignore_errors=True)
         shutil.rmtree(archive_dir, ignore_errors=True)
@@ -610,7 +681,7 @@ def main():
     try:
         sys.exit(action(arguments))
     except (protocol.PluginError, secrets.MissingSecret, ValueError,
-            RuntimeError, OSError) as e:
+            RuntimeError, OSError, subprocess.SubprocessError) as e:
         print("archive: {}".format(e), file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:

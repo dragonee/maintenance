@@ -243,6 +243,12 @@ and no password is asked for.
 in the morning still packs the same thing in the evening, even if someone
 edited a vhost in between.
 
+Packing never touches the installation, so it is safe to run again. If
+storage is not configured, or the upload fails, or you decline it, the
+archive is kept and its path reported rather than being thrown away with
+the temporary directory it was built in. `archive pack -s none` skips the
+upload deliberately, and `-k` keeps the archive without offering one.
+
 **Removal** is a separate command on purpose. It re-reads the plan, asks for
 the privileged credentials it needs at that moment, shows you what is about to
 be destroyed, and only then drops the databases, deletes the configuration and
@@ -398,7 +404,7 @@ Options:
     --path=PATH       Extra file or directory to archive and remove.
     --env=ENV         Env file describing this installation, in or out of tree.
     -a                Also report which plugins found nothing.
-    -s STORAGE        Storage backend to use [default: ssh]
+    -s STORAGE        Storage backend to use, or 'none' to skip [default: ssh]
     -k                Keep the archive locally; do not store it.
     -m META_DIR       Read metadata from an unpacked archive (remove).
     -y                Do not ask for confirmation.
