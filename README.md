@@ -161,7 +161,11 @@ by moving them from the backup directory to some other specified destination,
 Move files from backup to another directory on remote server.
 
 Usage:
-    eternalize [options] FILE...
+    eternalize [options] [FILE...]
+    eternalize add [options] TARGET PATH
+
+When called without FILE arguments, displays available targets on the remote server.
+The 'add' command appends a new target configuration to the remote .eternalize.ini file.
 
 TARGET can be:
     Folder
@@ -213,183 +217,301 @@ Options:
 
 # Archive tool
 
-This is a suite of programs to pack up finished projects (with databases and such),
-and upload them to a specified location on a remote server.
+This is a suite of programs to pack up finished projects (with databases,
+server configuration and whatever else they left lying around a server), and
+upload them to a specified location on a remote server.
 
-The unarchive command reverses this process.
+## Workflow
 
-## archive (1.0)
+The work happens in three steps, so that the decisions are made while a human
+is still watching and the destructive part is never a side effect of the
+useful part.
 
 ```
-Package a specific directory, then store it in a storage.
+archive discover /srv/example.com --path /etc/cron.d/example > example.yaml
+$EDITOR example.yaml
+archive pack example.yaml
+archive remove example.yaml
+```
+
+**Discovery** is read-only. Every plugin looks at the directory and reports
+what it recognised, and the result is a plan: a YAML file describing exactly
+what would be archived and removed. Nothing is dumped, nothing is deleted,
+and no password is asked for.
+
+**Packing** does what the plan says, without looking around again. A plan made
+in the morning still packs the same thing in the evening, even if someone
+edited a vhost in between.
+
+**Removal** is a separate command on purpose. It re-reads the plan, asks for
+the privileged credentials it needs at that moment, shows you what is about to
+be destroyed, and only then drops the databases, deletes the configuration and
+removes the directory.
+
+## Plugins
+
+A plugin is any executable on your `PATH` named `archive-plugin-*`. The driver
+runs it with no arguments, writes a JSON request to its stdin, and reads a
+YAML response from its stdout, so a plugin can be written in any language.
+Nothing interesting travels in `argv`, which every user on the machine can
+read out of `ps`.
+
+Plugins are additive: one directory can be a Bedrock installation *and* have a
+PostgreSQL database *and* an nginx vhost *and* three stray files in `/etc`,
+each handled by the plugin that understands it. They cooperate through the
+environment, a shared dictionary of **vars** and **secrets**:
+
+- **vars** are ordinary values. They are written to the plan, printed, and
+  treated as documentation of what will happen. `archive-plugin-wordpress`
+  publishes `mysql.databases` during discovery and `archive-plugin-mysql`
+  picks it up on its own pass, which is why detecting an installation and
+  dumping its database are two different plugins.
+- **secrets** are never printed and never written anywhere. A plugin can read
+  one to do its job, and anyone can ask whether one is present, but only the
+  *name* and origin of a secret reach the plan file. That is what makes a plan
+  safe to commit or mail.
+
+Because secrets are not stored, they are resolved again on every run, from the
+process environment first, then from the installation's own configuration
+files, then by asking you. Discovery declares which secrets will be needed;
+packing and removal fetch them.
+
+Ordering is declared by each plugin: detectors run at 10, the services that
+act on what they found at 50, catch-alls at 90.
+
+## Root access
+
+Dropping a database, deleting its owner, or removing a file from `/etc` needs
+rights the person running `archive` usually does not have. Nothing privileged
+is carried in the plan: those credentials are resolved during
+`archive remove`, at the moment they are needed.
+
+There are two ways a database server lets an administrator in, and both are
+supported.
+
+**With a password**, supply it through the environment for unattended runs,
+or let it prompt:
+
+```
+ARCHIVE_MYSQL_ROOT_PASSWORD=... archive remove example.yaml -y
+ARCHIVE_POSTGRESQL_SUPERUSER_PASSWORD=... archive remove example.yaml -y
+```
+
+**Without one.** On most current installations the administrator does not
+have a password at all: MySQL and MariaDB authenticate `root@localhost`
+through `auth_socket`, and PostgreSQL authenticates `postgres` through
+`peer`. There is nothing to type and nothing to put in a variable. When no
+password turns up, removal falls back to `sudo mysql` and
+`sudo -u postgres psql`, which is how those servers expect to be
+administered. The statements go in on stdin, so they do not appear in `ps`
+either.
+
+Which way it goes is visible in the plan and can be forced:
+
+```
+vars:
+  mysql.admin_user: root
+  mysql.admin_auth: auto        # auto | password | socket
+  postgresql.superuser: postgres
+  postgresql.superuser_auth: auto   # auto | password | peer
+```
+
+`auto` uses a password if one turns up and sudo otherwise. `password`
+insists on one and fails loudly if it is missing, which is what you want on a
+server where sudo would silently do the wrong thing. `socket` and `peer`
+never ask for a password at all.
+
+Removing *files* needs no configuration: `sudo` is reached for only on paths
+that are genuinely not yours to delete.
+
+## archive (2.0)
+
+```
+Pack up a finished project, with its databases and server configuration,
+and store it on a remote server.
+
+The work is split into three steps so that the interesting decisions happen
+while a human is still watching:
+
+    archive discover /srv/example.com > example.yaml
+    $EDITOR example.yaml
+    archive pack example.yaml
+    archive remove example.yaml
+
+Discovery is read-only and writes a plan describing everything the plugins
+found. Packing does exactly what the plan says, without looking around
+again. Removal is deliberately separate, and asks for the privileged
+credentials it needs at the moment it needs them.
+
+Secrets are never written to the plan. Their names and origins are, so the
+plan stays readable and shareable, and the values are fetched again on each
+run from the environment, from the installation's own config files, or from
+you.
 
 Usage:
-    archive [options] DIR [--] [ARGS...]
+    archive discover [options] [--path=PATH]... DIR
+    archive pack [options] PLAN
+    archive remove [options] PLAN
+    archive [options] [--path=PATH]... DIR
     archive --help
     archive --version
 
 Options:
-    -p         Preserve the directory.
-    -s STORAGE  Use specific storage command [default: ssh]
-    --help     Display this message.
-    --version  Display version information.
+    -o FILE           Write the plan (discover) or the archive (pack) here.
+    --path=PATH       Extra file or directory to archive and remove.
+    -a                Also report which plugins found nothing.
+    -s STORAGE        Storage backend to use [default: ssh]
+    -k                Keep the archive locally; do not store it.
+    -m META_DIR       Read metadata from an unpacked archive (remove).
+    -y                Do not ask for confirmation.
+    --no-ask          Never prompt for secrets; use the environment only.
+    --keep-directory  Do not delete the project directory (remove).
+    --help            Display this message.
+    --version         Display version information.
 ```
 
-## archive-pack-wordpress (1.0)
+## archive-plugin-wordpress (2.0)
 
 ```
-Pack an existing Wordpress installation.
+Recognise a classic WordPress installation and describe its database.
 
-Usage:
-    archive-pack-wordpress [--db DATABASES] [-o OUTPUT] -m META_DIR DIR
-    archive-pack-wordpress --check DIR
-    archive-pack-wordpress -h | --help
-    archive-pack-wordpress --version
-
-Options:
-    --check         Check if directory is a Wordpress instalation, return 0..1.
-    -m META_DIR     Use this directory for meta storage.
-    -o OUTPUT       Write archive to this file.
-    --db DATABASES  A comma-separated list of databases.
-    -h, --help      Display this message.
-    --version       Show version information.
+This plugin does not dump anything. It reads wp-config.php, publishes what
+it found as mysql.* variables, and lets archive-plugin-mysql do the work.
+That split is what lets one directory be a WordPress site *and* have a
+Caddy vhost *and* a handful of extra config files, each handled by the
+plugin that understands it.
 ```
 
-## archive-pack-bedrock (1.0)
+## archive-plugin-bedrock (2.0)
 
 ```
-Pack an existing Bedrock Wordpress installation.
+Recognise a Bedrock-flavoured WordPress installation.
 
-Usage:
-    archive-pack-bedrock [--db DATABASES] [-o OUTPUT] -m META_DIR DIR
-    archive-pack-bedrock --check DIR
-    archive-pack-bedrock -h | --help
-    archive-pack-bedrock --version
-
-Options:
-    --check         Check if directory is a Wordpress instalation, return 0..1.
-    -m META_DIR     Use this directory for meta storage.
-    -o OUTPUT       Write archive to this file.
-    --db DATABASES  A comma-separated list of databases.
-    -h, --help      Display this message.
-    --version       Show version information.
+Bedrock keeps its credentials in a dotenv file and its WordPress under
+web/wp, so it needs its own detector, but it publishes the same mysql.*
+variables as archive-plugin-wordpress and is handled identically downstream.
 ```
 
-## archive-pack-generic (1.0)
+## archive-plugin-mysql (2.0)
 
 ```
-Pack a generic directory.
+Dump and later drop the MySQL databases belonging to an installation.
 
-Usage:
-    archive-pack-generic [-o OUTPUT] -m META_DIR DIR
-    archive-pack-generic --check DIR
-    archive-pack-generic -h | --help
-    archive-pack-generic --version
+The databases are not detected here. A detector plugin (wordpress, bedrock,
+or anything you write) publishes mysql.databases, mysql.host and mysql.user
+during discovery, and this plugin picks them up. Failing that, it will read
+a DATABASE_URL out of a dotenv file in the directory itself.
 
-Options:
-    --check         Check if directory is a Wordpress instalation, return 0..1.
-    -m META_DIR     Use this directory for meta storage.
-    -o OUTPUT       Write archive to this file.
-    --db DATABASES  A comma-separated list of databases.
-    -h, --help      Display this message.
-    --version       Show version information.
+Credentials never appear in argv, where every user on the machine can read
+them out of ps: mysqldump is handed a 0600 defaults file instead.
+
+By default the dump records which users existed but not their passwords, so
+nothing secret is written into the archive. Set
+
+    mysql.store_credentials: true
+
+in the plan to embed them, for an installation you expect to restore
+unattended.
+
+Removal needs an administrator. If a password is available -- from
+ARCHIVE_MYSQL_ROOT_PASSWORD, from ~/.archive.ini, or from a prompt -- it
+connects with it. If none is, it falls back to `sudo mysql`, because a great
+many servers authenticate root through auth_socket, where there is no
+password to give and asking for one would deadlock.
+
+Two plan vars steer this: mysql.admin_user names the administrator, and
+mysql.admin_auth is auto (the above), password (insist on one) or socket
+(always sudo, never ask).
 ```
 
-## archive-mysql (1.0)
+## archive-plugin-postgresql (2.0)
 
 ```
-Save MySQL database dump and user info for restoration later.
+Dump and later drop the PostgreSQL databases belonging to an installation.
 
-Usage:
-    archive-mysql [options] DATABASE DUMP_DIRECTORY
-    archive-mysql [options] DATABASES... -o DUMP_DIR
-    archive-mysql -h | --help
-    archive-mysql --version
+Works the same way as archive-plugin-mysql: a detector plugin publishes
+postgresql.databases during discovery, or this plugin reads a DATABASE_URL
+out of a dotenv file in the directory itself. Django, Rails and Laravel
+projects are usually recognised by that alone.
 
-Options:
-    -o DUMP_DIR     Put output dumps into this directory.
-    -c OUT_CONFIG   Write config to the specified file [default: -]
-    --user USER     Username.
-    --pass PASS     Use this password.
-    --host HOST     Use this host [default: localhost].
-    --users USERS   A comma-separated lists of user=password pairs.
-                    See USER-PASSWORD PAIRS below to
-    -h, --help      Display this message.
-    --version       Show version information.
+pg_dump and psql are driven through a 0600 PGPASSFILE rather than a
+password on the command line or in the environment.
 
-USER-PASSWORD PAIRS
+Removal needs a superuser. If a password is available -- from
+ARCHIVE_POSTGRESQL_SUPERUSER_PASSWORD, from ~/.archive.ini, or from a prompt
+-- it connects over TCP with it. If none is, it falls back to
+`sudo -u postgres psql`, which is how a default install expects to be
+administered: the postgres role uses peer authentication and has no password
+to give. Set postgresql.superuser_auth in the plan to force either way.
 
-There are three ways to specify user-password pairs:
-
-user1, ...          Will ask for passwords.
-user1=pass1, ...    Will store passwords given.
-user1=, ...         Won't ask now, will ask for a new one when unarchiving.
+Open connections to the database are terminated first, because PostgreSQL
+refuses to drop a database anyone is still using.
 ```
 
-## archive-teardown-mysql (1.0)
+## archive-plugin-nginx (2.0)
 
 ```
-Drop MySQL databases for this archive.
+Archive and remove the nginx configuration pointing at an installation.
 
-Usage:
-    archive-teardown-mysql [options] META_DIR
-    archive-teardown-mysql --help
-    archive-teardown-mysql --version
+Discovery searches the usual configuration directories for files that name
+the directory being archived, and records both the sites-enabled symlink
+and the file it points at, since disabling a site and deleting it are
+different acts.
 
-Options:
-    -r REMOTE  Put file in the.
-    --help     Display this message.
-    --version  Display version information.
+Packing copies the configuration into meta/nginx/, keeping the absolute
+layout so a restore knows where each file belongs. Removal deletes them,
+runs nginx -t, and reloads only if the remaining configuration is valid.
+
+Configuration under /etc is not usually writable by the user running
+archive, so removal shells out through sudo unless already running as root.
+
+Set ARCHIVE_NGINX_CONFIG_PATHS to a colon-separated list to search
+somewhere other than the standard locations.
 ```
 
-## archive-pgsql (1.0)
+## archive-plugin-caddy (2.0)
 
 ```
-Save PostgreSQL database dump and user info for restoration later.
+Archive and remove the Caddy configuration pointing at an installation.
 
-Usage:
-    archive-pgsql [options] DATABASE DUMP_DIRECTORY
-    archive-pgsql [options] DATABASES... -o OUT_DUMP
-    archive-pgsql --check DIRECTORY
-    archive-pgsql -h | --help
-    archive-pgsql --version
+Behaves exactly like archive-plugin-nginx, differing only in where Caddy
+keeps its files and how a site address is written. A Caddyfile that serves
+several unrelated sites is copied whole and reported, but removing it would
+take the other sites down too, so check what discovery found before running
+archive remove.
 
-Options:
-    -c OUT_CONFIG   Write config to the specified file [default: -]
-    -o OUT_DUMP     Write dumps to the specified directory.
-    --user USER     Username.
-    --pass PASS     Use this password.
-    --host HOST     Use this host [default: localhost].
-    --users USERS   A comma-separated lists of user=password pairs.
-                    See USER-PASSWORD PAIRS below to
-    --check DIRECTORY   Check if this plugin can archive this directory.
-    -h, --help      Display this message.
-    --version       Show version information.
-
-USER-PASSWORD PAIRS
-
-There are three ways to specify user-password pairs:
-
-user1, ...          Will ask for passwords.
-user1=pass1, ...    Will store passwords given.
-user1=, ...         Won't ask now, will ask for a new one when unarchiving.
+Set ARCHIVE_CADDY_CONFIG_PATHS to a colon-separated list to search
+somewhere other than the standard locations.
 ```
 
-## archive-check (1.0)
+## archive-plugin-paths (2.0)
 
 ```
-Wait on specific resource lock and then run a command.
+Archive and remove files and directories that live outside the project.
 
-Usage:
-    archive-check [options] DIRS...
-    archive-check --help
-    archive-check --version
+An installation is rarely confined to one directory. There is a cron job in
+/etc/cron.d, a unit file in /etc/systemd/system, a logrotate rule, a socket
+directory under /var. Nothing can detect those reliably, so they are named
+explicitly:
 
-Options:
-    -a         Show all entries, even those with 0.0 score.
-    -l         Use long format, even if one item was used.
-    --help     Display this message.
-    --version  Display version information.
+    archive discover /srv/example.com \
+        --path /etc/cron.d/example \
+        --path /etc/systemd/system/example.service \
+        > example.yaml
+
+They can equally well be added to the plan by hand afterwards, which is
+often easier than remembering every one up front:
+
+    plugins:
+      - name: paths
+        order: 90
+        score: 1.0
+        data:
+          paths:
+            - /etc/logrotate.d/example
+
+Packing copies each path into meta/paths/, keeping its absolute layout.
+Removal deletes it, through sudo when it is not yours to delete.
 ```
 
 ## archive-compress (1.0)
@@ -499,6 +621,7 @@ Options:
     --version                Display version information.
     --dry-run                Do not execute commands, just print them.
     -O, --only-commands      Only run commands, do not print file contents.
+    -C, --cwd PATH           Change to directory before running commands.
 ```
 
 You can use it like this:

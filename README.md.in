@@ -40,26 +40,128 @@ by moving them from the backup directory to some other specified destination,
 
 # Archive tool
 
-This is a suite of programs to pack up finished projects (with databases and such),
-and upload them to a specified location on a remote server.
+This is a suite of programs to pack up finished projects (with databases,
+server configuration and whatever else they left lying around a server), and
+upload them to a specified location on a remote server.
 
-The unarchive command reverses this process.
+## Workflow
+
+The work happens in three steps, so that the decisions are made while a human
+is still watching and the destructive part is never a side effect of the
+useful part.
+
+```
+archive discover /srv/example.com --path /etc/cron.d/example > example.yaml
+$EDITOR example.yaml
+archive pack example.yaml
+archive remove example.yaml
+```
+
+**Discovery** is read-only. Every plugin looks at the directory and reports
+what it recognised, and the result is a plan: a YAML file describing exactly
+what would be archived and removed. Nothing is dumped, nothing is deleted,
+and no password is asked for.
+
+**Packing** does what the plan says, without looking around again. A plan made
+in the morning still packs the same thing in the evening, even if someone
+edited a vhost in between.
+
+**Removal** is a separate command on purpose. It re-reads the plan, asks for
+the privileged credentials it needs at that moment, shows you what is about to
+be destroyed, and only then drops the databases, deletes the configuration and
+removes the directory.
+
+## Plugins
+
+A plugin is any executable on your `PATH` named `archive-plugin-*`. The driver
+runs it with no arguments, writes a JSON request to its stdin, and reads a
+YAML response from its stdout, so a plugin can be written in any language.
+Nothing interesting travels in `argv`, which every user on the machine can
+read out of `ps`.
+
+Plugins are additive: one directory can be a Bedrock installation *and* have a
+PostgreSQL database *and* an nginx vhost *and* three stray files in `/etc`,
+each handled by the plugin that understands it. They cooperate through the
+environment, a shared dictionary of **vars** and **secrets**:
+
+- **vars** are ordinary values. They are written to the plan, printed, and
+  treated as documentation of what will happen. `archive-plugin-wordpress`
+  publishes `mysql.databases` during discovery and `archive-plugin-mysql`
+  picks it up on its own pass, which is why detecting an installation and
+  dumping its database are two different plugins.
+- **secrets** are never printed and never written anywhere. A plugin can read
+  one to do its job, and anyone can ask whether one is present, but only the
+  *name* and origin of a secret reach the plan file. That is what makes a plan
+  safe to commit or mail.
+
+Because secrets are not stored, they are resolved again on every run, from the
+process environment first, then from the installation's own configuration
+files, then by asking you. Discovery declares which secrets will be needed;
+packing and removal fetch them.
+
+Ordering is declared by each plugin: detectors run at 10, the services that
+act on what they found at 50, catch-alls at 90.
+
+## Root access
+
+Dropping a database, deleting its owner, or removing a file from `/etc` needs
+rights the person running `archive` usually does not have. Nothing privileged
+is carried in the plan: those credentials are resolved during
+`archive remove`, at the moment they are needed.
+
+There are two ways a database server lets an administrator in, and both are
+supported.
+
+**With a password**, supply it through the environment for unattended runs,
+or let it prompt:
+
+```
+ARCHIVE_MYSQL_ROOT_PASSWORD=... archive remove example.yaml -y
+ARCHIVE_POSTGRESQL_SUPERUSER_PASSWORD=... archive remove example.yaml -y
+```
+
+**Without one.** On most current installations the administrator does not
+have a password at all: MySQL and MariaDB authenticate `root@localhost`
+through `auth_socket`, and PostgreSQL authenticates `postgres` through
+`peer`. There is nothing to type and nothing to put in a variable. When no
+password turns up, removal falls back to `sudo mysql` and
+`sudo -u postgres psql`, which is how those servers expect to be
+administered. The statements go in on stdin, so they do not appear in `ps`
+either.
+
+Which way it goes is visible in the plan and can be forced:
+
+```
+vars:
+  mysql.admin_user: root
+  mysql.admin_auth: auto        # auto | password | socket
+  postgresql.superuser: postgres
+  postgresql.superuser_auth: auto   # auto | password | peer
+```
+
+`auto` uses a password if one turns up and sudo otherwise. `password`
+insists on one and fails loudly if it is missing, which is what you want on a
+server where sudo would silently do the wrong thing. `socket` and `peer`
+never ask for a password at all.
+
+Removing *files* needs no configuration: `sudo` is reached for only on paths
+that are genuinely not yours to delete.
 
 [$ make-readme archive]
 
-[$ make-readme archive-pack-wordpress]
+[$ make-readme archive-plugin-wordpress]
 
-[$ make-readme archive-pack-bedrock]
+[$ make-readme archive-plugin-bedrock]
 
-[$ make-readme archive-pack-generic]
+[$ make-readme archive-plugin-mysql]
 
-[$ make-readme archive-mysql]
+[$ make-readme archive-plugin-postgresql]
 
-[$ make-readme archive-teardown-mysql]
+[$ make-readme archive-plugin-nginx]
 
-[$ make-readme archive-pgsql]
+[$ make-readme archive-plugin-caddy]
 
-[$ make-readme archive-check]
+[$ make-readme archive-plugin-paths]
 
 [$ make-readme archive-compress]
 
